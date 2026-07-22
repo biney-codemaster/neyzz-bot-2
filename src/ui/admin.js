@@ -246,18 +246,14 @@ function buildPaymentsAdmin() {
 
   const cryptoLines = hdOk
     ? [
-        `${emoji('check')} **HD Wallet actif** (CRYPTO_MNEMONIC)`,
+        `${emoji('check')} **HD Wallet Exodus actif** (CRYPTO_MNEMONIC)`,
         `Coins: ${cryptos.map((c) => c.id.toUpperCase()).join(', ') || '—'}`,
         ...Object.entries(hdStats).map(
-          ([coin, s]) => `• ${coin.toUpperCase()} — prochain index **#${s.nextIndex}** (${s.addressesUsed} adresses brûlées)`,
+          ([coin, s]) => `• ${coin.toUpperCase()} — prochain index **#${s.nextIndex}** (${s.addressesUsed} adresses utilisées)`,
         ),
         '',
-        '_Chaque paiement = 1 adresse neuve (`ltc1…` / `bc1…`), jamais réutilisée._',
-        `${emoji('warn')} **Important LTC/BTC :** les fonds ne tombent PAS sur ton adresse Exodus/Trust.`,
-        '_Ils sont sur l\'adresse HD du bot. Utilise **Récupérer crypto** (WIF) ou Electrum-LTC BIP84 avec la même seed._',
-        config.crypto.sweepAddress
-          ? `Adresse de regroupement (info): \`${config.crypto.sweepAddress}\``
-          : '_Optionnel: CRYPTO_SWEEP_ADDRESS (rappel perso, pas l\'adresse de réception)._',
+        '_Chemins BIP44 (Exodus) : LTC = adresses `L…`, BTC = `1…`, ETH/USDT = `0x…`_',
+        '_Chaque paiement = 1 adresse neuve → visible dans ton Exodus (même seed)._',
       ]
     : [
         `${emoji('warn')} HD Wallet **non configuré**`,

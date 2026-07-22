@@ -59,12 +59,6 @@ const config = {
     amountTolerance: Number(process.env.CRYPTO_AMOUNT_TOLERANCE || 0.02),
     /** Intervalle de scan blockchain (ms) */
     watchIntervalMs: Number(process.env.CRYPTO_WATCH_INTERVAL_MS || 30000),
-    /**
-     * Adresse perso optionnelle pour SWEAR manuel / info.
-     * Les paiements arrivent d'abord sur les adresses HD dérivées (à toi via la seed).
-     * Tu peux ensuite tout regrouper vers cette adresse depuis Electrum/MetaMask.
-     */
-    sweepAddress: process.env.CRYPTO_SWEEP_ADDRESS || '',
     ethRpcUrl: process.env.ETH_RPC_URL || 'https://ethereum.publicnode.com',
     /** Contrat USDT ERC-20 */
     usdtContract: process.env.USDT_CONTRACT || '0xdAC17F958D2ee523a2206206994597C13D831ec7',

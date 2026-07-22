@@ -23,32 +23,22 @@ Plus besoin de `deploy-commands`.
 
 Startup : `npm install && npm start`
 
-## Crypto HD Wallet — comment TU reçois l'argent
+## Crypto (Exodus)
 
-Tu ne mets **pas** ton adresse perso pour encaisser chaque vente (sinon impossible de savoir qui a payé quoi).
+1. Mets ta **seed Exodus** dans `CRYPTO_MNEMONIC`
+2. Chaque commande génère une adresse neuve (BIP44, comme Exodus)
+3. Le client paie → détection auto → livraison en MP
+4. Les fonds apparaissent dans **ton Exodus** (même seed)
 
-À la place :
-
-1. Tu génères une **seed BIP39** (12 mots) → `CRYPTO_MNEMONIC` dans `.env`
-2. Pour chaque commande, le bot dérive une **adresse neuve** depuis cette seed
-3. Cette adresse n'est **jamais réutilisée** (même si la commande est annulée)
-4. Le client paie → le bot détecte la TX on-chain → confirme → **livre en MP**
-5. L'argent est déjà **à toi** : toutes ces adresses appartiennent à ta seed
-
-Pour voir / regrouper les fonds :
-- BTC/LTC → importe la seed dans **Electrum**
-- ETH/USDT → importe la seed dans **MetaMask**
-- Ensuite tu envoies tout vers ton cold wallet (`CRYPTO_SWEEP_ADDRESS` est juste une info/rappel)
-
-**Ne partage jamais la mnemonic. Backup offline.**
+**Ne partage jamais la mnemonic.**
 
 ## Flow acheteur
 
 1. Boutique → panier → PayPal ou Crypto  
-2. Salon commande + instructions (aussi en MP si possible)  
+2. Salon commande + instructions de paiement  
 3. Crypto : adresse HD unique + montant exact  
-4. Détection auto (mempool → confirmations)  
-5. Livraison **MP** (auto et manuel)  
+4. Détection auto → livraison **MP**  
+5. Fermer → transcript HTML (MP + logs)  
 
 ## Commandes
 

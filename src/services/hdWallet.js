@@ -8,6 +8,11 @@ const config = require('../config');
 
 bitcoin.initEccLib(ecc);
 
+/**
+ * Chemins compatibles Exodus (BIP44).
+ * LTC → adresses L…  |  BTC → adresses 1…  |  ETH/USDT → 0x…
+ * Mets ta seed Exodus dans CRYPTO_MNEMONIC → les paiements apparaissent dans Exodus.
+ */
 const COIN_META = {
   btc: {
     id: 'btc',
@@ -15,9 +20,9 @@ const COIN_META = {
     emojiKey: 'btc',
     decimals: 8,
     coingecko: 'bitcoin',
-    pathPrefix: "m/84'/0'/0'/0",
+    pathPrefix: "m/44'/0'/0'/0",
+    script: 'p2pkh',
     network: bitcoin.networks.bitcoin,
-    recoverHint: 'Electrum (Bitcoin) — BIP84 native segwit (bc1…)',
   },
   ltc: {
     id: 'ltc',
@@ -25,7 +30,8 @@ const COIN_META = {
     emojiKey: 'ltc',
     decimals: 8,
     coingecko: 'litecoin',
-    pathPrefix: "m/84'/2'/0'/0",
+    pathPrefix: "m/44'/2'/0'/0",
+    script: 'p2pkh',
     network: {
       messagePrefix: '\x19Litecoin Signed Message:\n',
       bech32: 'ltc',
@@ -34,8 +40,6 @@ const COIN_META = {
       scriptHash: 0x32,
       wif: 0xb0,
     },
-    recoverHint:
-      'Electrum-LTC en BIP84 (ltc1…) — Exodus/Trust ne voient souvent PAS ces adresses',
   },
   eth: {
     id: 'eth',
@@ -44,7 +48,6 @@ const COIN_META = {
     decimals: 18,
     coingecko: 'ethereum',
     pathPrefix: "m/44'/60'/0'/0",
-    recoverHint: "MetaMask — m/44'/60'/0'/0/N",
   },
   usdt: {
     id: 'usdt',
@@ -53,7 +56,6 @@ const COIN_META = {
     decimals: 6,
     coingecko: 'tether',
     pathPrefix: "m/44'/60'/0'/0",
-    recoverHint: 'MetaMask (Ethereum) — même adresse ETH au même index',
   },
 };
 
@@ -67,7 +69,7 @@ function getRoot() {
   if (rootKey) return rootKey;
   if (!isHdConfigured()) {
     throw new Error(
-      'CRYPTO_MNEMONIC manquant ou invalide. Génère une seed BIP39 et mets-la dans .env',
+      'CRYPTO_MNEMONIC manquant ou invalide. Mets ta seed Exodus (12 mots) dans .env',
     );
   }
   const seed = bip39.mnemonicToSeedSync(config.crypto.mnemonic);
@@ -92,10 +94,10 @@ function deriveAddress(coinId, index) {
   const { node, path, meta } = deriveNode(coinId, index);
 
   if (coinId === 'btc' || coinId === 'ltc') {
-    const payment = bitcoin.payments.p2wpkh({
-      pubkey: node.publicKey,
-      network: meta.network,
-    });
+    const payment =
+      meta.script === 'p2wpkh'
+        ? bitcoin.payments.p2wpkh({ pubkey: node.publicKey, network: meta.network })
+        : bitcoin.payments.p2pkh({ pubkey: node.publicKey, network: meta.network });
     return {
       address: payment.address,
       path,
@@ -113,10 +115,6 @@ function deriveAddress(coinId, index) {
   };
 }
 
-/**
- * Exporte la clé privée pour sweep / import.
- * BTC/LTC → WIF | ETH/USDT → hex 0x…
- */
 function exportPrivateKey(coinId, index) {
   const { node, path, meta } = deriveNode(coinId, index);
   const derived = deriveAddress(coinId, index);
@@ -131,16 +129,13 @@ function exportPrivateKey(coinId, index) {
       ...derived,
       wif: encoded,
       privateKeyHex: node.privateKey.toString('hex'),
-      recoverHint: meta.recoverHint,
     };
   }
 
-  const hex = `0x${node.privateKey.toString('hex')}`;
   return {
     ...derived,
-    privateKeyHex: hex,
+    privateKeyHex: `0x${node.privateKey.toString('hex')}`,
     wif: null,
-    recoverHint: meta.recoverHint,
   };
 }
 
@@ -155,9 +150,6 @@ function generateMnemonic() {
   return bip39.generateMnemonic(128);
 }
 
-/**
- * Vérifie que la seed du .env dérive bien la même adresse que celle en DB.
- */
 function verifyPaymentAddress(row) {
   if (!row) return { ok: false, error: 'Adresse introuvable' };
   try {
