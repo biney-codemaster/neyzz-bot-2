@@ -8,6 +8,8 @@ const {
   Collection,
   Events,
   MessageFlags,
+  REST,
+  Routes,
 } = require('discord.js');
 
 const config = require('./config');
@@ -19,8 +21,11 @@ const {
   handleModal,
   reloadEmojisFromDb,
 } = require('./handlers/interactions');
-const { container, text, V2 } = require('./ui/v2');
+const { container, text } = require('./ui/v2');
 const { emoji } = require('./emoji');
+const { isHdConfigured } = require('./services/hdWallet');
+const paymentAddresses = require('./services/paymentAddresses');
+const { startCryptoWatcher } = require('./services/cryptoWatcher');
 
 if (!config.token) {
   console.error('DISCORD_TOKEN manquant dans .env');
@@ -28,6 +33,7 @@ if (!config.token) {
 }
 
 getDb();
+paymentAddresses.ensureSchema();
 reloadEmojisFromDb();
 
 const client = new Client({
@@ -35,6 +41,7 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.DirectMessages,
   ],
   partials: [Partials.Channel],
 });
@@ -44,9 +51,47 @@ for (const cmd of commands) {
   client.commands.set(cmd.data.name, cmd);
 }
 
-client.once(Events.ClientReady, (c) => {
+/** Enregistre les slash commands au démarrage — plus besoin de deploy-commands.js */
+async function registerSlashCommands() {
+  if (!config.clientId) {
+    console.warn(
+      `${emoji('warn')} DISCORD_CLIENT_ID manquant — les commandes / ne seront pas enregistrées.`,
+    );
+    return;
+  }
+
+  const body = commands.map((c) => c.data.toJSON());
+  const rest = new REST({ version: '10' }).setToken(config.token);
+
+  if (config.guildId) {
+    await rest.put(Routes.applicationGuildCommands(config.clientId, config.guildId), { body });
+    console.log(
+      `${emoji('check')} Commandes / enregistrées sur le serveur ${config.guildId} (${body.length})`,
+    );
+  } else {
+    await rest.put(Routes.applicationCommands(config.clientId), { body });
+    console.log(`${emoji('check')} Commandes / enregistrées globalement (${body.length})`);
+  }
+}
+
+client.once(Events.ClientReady, async (c) => {
   console.log(`${emoji('check')} Connecté en tant que ${c.user.tag}`);
   console.log(`${emoji('shop')} Boutique: ${config.shopName}`);
+
+  try {
+    await registerSlashCommands();
+  } catch (e) {
+    console.error(`${emoji('cross')} Échec enregistrement des commandes /:`, e.message);
+  }
+
+  if (isHdConfigured()) {
+    console.log(`${emoji('crypto')} HD wallet prêt`);
+    startCryptoWatcher(client);
+  } else {
+    console.warn(
+      `${emoji('warn')} CRYPTO_MNEMONIC absent/invalide — paiements crypto HD désactivés`,
+    );
+  }
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
@@ -76,7 +121,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const payload = {
       components: [
         container(config.dangerColor).addTextDisplayComponents(
-          text(`${emoji('cross')} Une erreur est survenue.\n\`\`\`${String(error.message || error).slice(0, 500)}\`\`\``),
+          text(
+            `${emoji('cross')} Une erreur est survenue.\n\`\`\`${String(error.message || error).slice(0, 500)}\`\`\``,
+          ),
         ),
       ],
       flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
@@ -97,11 +144,15 @@ const app = express();
 app.use(express.json({ type: '*/*' }));
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, bot: client.user?.tag || null, shop: config.shopName });
+  res.json({
+    ok: true,
+    bot: client.user?.tag || null,
+    shop: config.shopName,
+    hdWallet: isHdConfigured(),
+  });
 });
 
 app.post('/webhooks/paypal', (req, res) => {
-  // Hook prêt pour validation PayPal (à brancher avec PAYPAL_WEBHOOK_ID)
   console.log('PayPal webhook reçu:', JSON.stringify(req.body).slice(0, 500));
   res.sendStatus(200);
 });

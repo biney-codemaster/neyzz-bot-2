@@ -1,5 +1,9 @@
 const config = require('../config');
 const { getSetting } = require('../db/database');
+const { isHdConfigured, enabledCoins, COIN_META } = require('./hdWallet');
+const paymentAddresses = require('./paymentAddresses');
+const prices = require('./prices');
+const { emoji } = require('../emoji');
 
 function enabledPaymentMethods() {
   const methods = [];
@@ -9,22 +13,33 @@ function enabledPaymentMethods() {
     methods.push({ id: 'paypal', label: 'PayPal', emojiKey: 'paypal' });
   }
 
-  const cryptos = getEnabledCryptos();
-  if (cryptos.length) {
+  if (getEnabledCryptos().length) {
     methods.push({ id: 'crypto', label: 'Crypto', emojiKey: 'crypto' });
   }
   return methods;
 }
 
 function getEnabledCryptos() {
+  // Mode HD wallet (recommandé)
+  if (isHdConfigured()) {
+    return enabledCoins().map((c) => ({
+      id: c.id,
+      label: c.label,
+      emojiKey: c.emojiKey,
+      hd: true,
+      address: null,
+    }));
+  }
+
+  // Fallback legacy: adresses statiques (déconseillé — pas de détection fiable multi-paiements)
   const map = [
-    { id: 'btc', label: 'Bitcoin (BTC)', emojiKey: 'btc', setting: 'crypto_btc', env: config.crypto.btc },
-    { id: 'eth', label: 'Ethereum (ETH)', emojiKey: 'eth', setting: 'crypto_eth', env: config.crypto.eth },
-    { id: 'ltc', label: 'Litecoin (LTC)', emojiKey: 'ltc', setting: 'crypto_ltc', env: config.crypto.ltc },
-    { id: 'usdt', label: 'USDT', emojiKey: 'usdt', setting: 'crypto_usdt', env: config.crypto.usdt },
+    { id: 'btc', label: 'Bitcoin (BTC)', emojiKey: 'btc', setting: 'crypto_btc', env: '' },
+    { id: 'eth', label: 'Ethereum (ETH)', emojiKey: 'eth', setting: 'crypto_eth', env: '' },
+    { id: 'ltc', label: 'Litecoin (LTC)', emojiKey: 'ltc', setting: 'crypto_ltc', env: '' },
+    { id: 'usdt', label: 'USDT', emojiKey: 'usdt', setting: 'crypto_usdt', env: '' },
   ];
   return map
-    .map((c) => ({ ...c, address: getSetting(c.setting, c.env) || '' }))
+    .map((c) => ({ ...c, address: getSetting(c.setting, '') || '', hd: false }))
     .filter((c) => c.address);
 }
 
@@ -49,39 +64,75 @@ function buildPaypalPayment(order) {
       '2. Choisis **Amis et famille** si demandé (ou suis les consignes du staff)',
       `3. Mets la référence **${order.public_id}** dans le message`,
       '4. Clique sur **J\'ai payé** dans ce salon',
-      '5. Un staff confirmera ensuite le paiement',
+      '5. Un staff confirmera ensuite (PayPal n\'est pas auto on-chain)',
     ].join('\n'),
   };
 }
 
-function buildCryptoPayment(order, cryptoId) {
-  const cryptos = getEnabledCryptos();
-  const coin = cryptos.find((c) => c.id === cryptoId) || (cryptoId ? null : cryptos[0]);
-  if (!coin) {
-    return {
-      method: 'crypto',
-      title: 'Paiement Crypto',
-      amount: Number(order.total).toFixed(2),
-      instructions: `${require('../emoji').emoji('warn')} Choisis d'abord une crypto via le menu (ou redemande au bot).`,
-    };
+/**
+ * Prépare le paiement crypto: alloue une adresse HD unique + montant exact.
+ */
+async function prepareCryptoPayment(order, cryptoId) {
+  const coin = cryptoId || order.crypto_currency;
+  if (!coin || !COIN_META[coin]) throw new Error('Crypto invalide');
+
+  if (!isHdConfigured()) {
+    throw new Error('HD wallet non configuré — ajoute CRYPTO_MNEMONIC dans .env');
   }
 
+  const quote = await prices.eurToCryptoAmount(coin, order.total);
+  const row = paymentAddresses.allocateAddressForOrder({
+    orderId: order.id,
+    coin,
+    expectedAmount: quote.amountStr,
+    expectedAmountEur: order.total,
+  });
+
+  return buildCryptoPaymentFromRow(order, row, quote);
+}
+
+function buildCryptoPaymentFromRow(order, row, quote = null) {
+  const meta = COIN_META[row.coin];
+  const conf = config.crypto.confirmations[row.coin] ?? 1;
+  const amountStr = row.expected_amount;
   const note = getSetting('crypto_network_note', config.crypto.networkNote);
+
   return {
     method: 'crypto',
-    crypto: coin,
-    title: `Paiement ${coin.label}`,
-    amount: Number(order.total).toFixed(2),
-    address: coin.address,
+    crypto: { id: row.coin, label: meta.label, emojiKey: meta.emojiKey },
+    title: `Paiement ${meta.label}`,
+    amount: amountStr,
+    amountEur: order.total,
+    address: row.address,
+    path: row.derivation_path,
+    quote,
     instructions: [
-      `1. Envoie l'équivalent de **${Number(order.total).toFixed(2)} ${config.currencySymbol}** en **${coin.label}**`,
-      `2. Adresse : \`${coin.address}\``,
-      note ? `3. ${note}` : null,
-      `4. Mets **${order.public_id}** en mémo si possible`,
-      '5. Clique sur **J\'ai payé** et attends la confirmation staff',
+      `${emoji('crypto')} Envoie **exactement** \`${amountStr} ${row.coin.toUpperCase()}\``,
+      `(≈ **${Number(order.total).toFixed(2)} ${config.currencySymbol}**)`,
+      '',
+      `${emoji('lock')} Adresse unique (1 seule utilisation) :`,
+      `\`${row.address}\``,
+      '',
+      note ? `${emoji('warn')} ${note}` : null,
+      `${emoji('clock')} Dès que le réseau confirme (≥ ${conf} conf), livraison **auto en MP**.`,
+      `${emoji('info')} N'envoie rien d'autre sur cette adresse.`,
     ]
       .filter(Boolean)
       .join('\n'),
+  };
+}
+
+function buildCryptoPayment(order, cryptoId) {
+  const row = paymentAddresses.getAddressByOrder(order.id);
+  if (row) return buildCryptoPaymentFromRow(order, row);
+
+  // Pas encore allouée (ex: panel avant prepare) — message placeholder
+  const meta = COIN_META[cryptoId || order.crypto_currency];
+  return {
+    method: 'crypto',
+    title: meta ? `Paiement ${meta.label}` : 'Paiement Crypto',
+    amount: Number(order.total).toFixed(2),
+    instructions: `${emoji('pending')} Génération de l'adresse HD en cours…`,
   };
 }
 
@@ -90,4 +141,5 @@ module.exports = {
   getEnabledCryptos,
   buildPaypalPayment,
   buildCryptoPayment,
+  prepareCryptoPayment,
 };

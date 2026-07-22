@@ -216,7 +216,39 @@ function buildOrdersAdmin() {
 
 function buildPaymentsAdmin() {
   const { getSetting } = require('../db/database');
+  const { isHdConfigured } = require('../services/hdWallet');
+  const paymentAddresses = require('../services/paymentAddresses');
   const cryptos = payments.getEnabledCryptos();
+  const hdOk = isHdConfigured();
+  let hdStats = {};
+  try {
+    hdStats = paymentAddresses.stats();
+  } catch {
+    hdStats = {};
+  }
+
+  const cryptoLines = hdOk
+    ? [
+        `${emoji('check')} **HD Wallet actif** (CRYPTO_MNEMONIC)`,
+        `Coins: ${cryptos.map((c) => c.id.toUpperCase()).join(', ') || '—'}`,
+        ...Object.entries(hdStats).map(
+          ([coin, s]) => `• ${coin.toUpperCase()} — prochain index **#${s.nextIndex}** (${s.addressesUsed} adresses brûlées)`,
+        ),
+        '',
+        '_Chaque paiement = 1 adresse neuve, jamais réutilisée._',
+        '_L\'argent arrive sur CES adresses (à toi via la seed). Importe la mnemonic dans Electrum/MetaMask pour voir/regrouper les fonds._',
+        config.crypto.sweepAddress
+          ? `Adresse de regroupement (info): \`${config.crypto.sweepAddress}\``
+          : '_Optionnel: CRYPTO_SWEEP_ADDRESS dans .env (adresse perso pour regrouper plus tard)._',
+      ]
+    : [
+        `${emoji('warn')} HD Wallet **non configuré**`,
+        'Ajoute `CRYPTO_MNEMONIC` dans ton `.env` puis relance le bot.',
+        cryptos.length
+          ? `Fallback adresses statiques: ${cryptos.map((c) => c.label).join(', ')}`
+          : 'Aucune crypto active.',
+      ];
+
   return {
     components: [
       container().addTextDisplayComponents(
@@ -226,18 +258,13 @@ function buildPaymentsAdmin() {
             `${emoji('paypal')} PayPal email: \`${getSetting('paypal_email', config.paypal.email) || '—'}\``,
             `${emoji('paypal')} PayPal.me: \`${getSetting('paypal_me', config.paypal.meUsername) || '—'}\``,
             '',
-            `${emoji('crypto')} Cryptos configurées:`,
-            cryptos.length
-              ? cryptos.map((c) => `• **${c.label}** → \`${c.address}\``).join('\n')
-              : '_Aucune_',
-            '',
-            '_Modifie via `.env` ou les boutons ci-dessous (sauvegarde en DB)._',
+            `${emoji('crypto')} Crypto:`,
+            ...cryptoLines,
           ].join('\n'),
         ),
       ),
       row(
         btn('admin:pay_paypal', 'Config PayPal', ButtonStyle.Primary, 'paypal'),
-        btn('admin:pay_crypto', 'Config Crypto', ButtonStyle.Secondary, 'crypto'),
         btn('admin:home', 'Retour', ButtonStyle.Secondary, 'back'),
       ),
     ],

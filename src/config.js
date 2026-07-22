@@ -8,6 +8,14 @@ function splitIds(value) {
     .filter(Boolean);
 }
 
+function splitList(value, fallback = []) {
+  if (!value) return fallback;
+  return String(value)
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 const config = {
   token: process.env.DISCORD_TOKEN || '',
   clientId: process.env.DISCORD_CLIENT_ID || '',
@@ -35,11 +43,31 @@ const config = {
   },
 
   crypto: {
-    btc: process.env.CRYPTO_BTC_ADDRESS || '',
-    eth: process.env.CRYPTO_ETH_ADDRESS || '',
-    ltc: process.env.CRYPTO_LTC_ADDRESS || '',
-    usdt: process.env.CRYPTO_USDT_ADDRESS || '',
-    networkNote: process.env.CRYPTO_NETWORK_NOTE || '',
+    /** Seed BIP39 — TOUTES les adresses générées t'appartiennent */
+    mnemonic: process.env.CRYPTO_MNEMONIC || '',
+    /** Coins activés: btc,eth,ltc,usdt */
+    enabledCoins: splitList(process.env.CRYPTO_ENABLED_COINS, ['btc', 'eth', 'ltc', 'usdt']),
+    networkNote: process.env.CRYPTO_NETWORK_NOTE || 'Envoie uniquement sur le bon réseau.',
+    /** Confirmations requises avant livraison auto */
+    confirmations: {
+      btc: Number(process.env.CRYPTO_CONF_BTC || 1),
+      ltc: Number(process.env.CRYPTO_CONF_LTC || 1),
+      eth: Number(process.env.CRYPTO_CONF_ETH || 1),
+      usdt: Number(process.env.CRYPTO_CONF_USDT || 1),
+    },
+    /** Tolérance sous-paiement (ex: 0.02 = 2%) */
+    amountTolerance: Number(process.env.CRYPTO_AMOUNT_TOLERANCE || 0.02),
+    /** Intervalle de scan blockchain (ms) */
+    watchIntervalMs: Number(process.env.CRYPTO_WATCH_INTERVAL_MS || 30000),
+    /**
+     * Adresse perso optionnelle pour SWEAR manuel / info.
+     * Les paiements arrivent d'abord sur les adresses HD dérivées (à toi via la seed).
+     * Tu peux ensuite tout regrouper vers cette adresse depuis Electrum/MetaMask.
+     */
+    sweepAddress: process.env.CRYPTO_SWEEP_ADDRESS || '',
+    ethRpcUrl: process.env.ETH_RPC_URL || 'https://ethereum.publicnode.com',
+    /** Contrat USDT ERC-20 */
+    usdtContract: process.env.USDT_CONTRACT || '0xdAC17F958D2ee523a2206206994597C13D831ec7',
   },
 
   httpPort: Number(process.env.HTTP_PORT || 3000),

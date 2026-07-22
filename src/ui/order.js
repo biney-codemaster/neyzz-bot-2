@@ -79,15 +79,25 @@ function buildOrderChannelPanel(order, paymentInfo = null) {
 
   if (customerBtns.length) components.push(row(...customerBtns));
 
+  if (order.payment_method === 'crypto' && ['pending', 'awaiting_payment'].includes(order.status)) {
+    components.push(
+      container(config.accentColor).addTextDisplayComponents(
+        text(
+          `${emoji('crypto')} Surveillance on-chain active — pas besoin d'attendre le staff si le montant est exact. Livraison en **MP** après confirmation réseau.`,
+        ),
+      ),
+    );
+  }
+
   components.push(
     container(config.accentColor).addTextDisplayComponents(
       text(
-        `${emoji('staff')} **Zone staff** — confirmation paiement / livraison manuelle`,
+        `${emoji('staff')} **Zone staff** — secours manuel (PayPal / litiges / livraison manuelle)`,
       ),
     ),
     row(
       btn(`staff:confirm_pay:${order.id}`, 'Confirmer paiement', ButtonStyle.Success, 'money'),
-      btn(`staff:deliver:${order.id}`, 'Livrer', ButtonStyle.Primary, 'delivery'),
+      btn(`staff:deliver:${order.id}`, 'Livrer (MP)', ButtonStyle.Primary, 'delivery'),
       btn(`staff:cancel:${order.id}`, 'Annuler commande', ButtonStyle.Danger, 'trash'),
     ),
   );

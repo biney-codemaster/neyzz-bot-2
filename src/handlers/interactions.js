@@ -6,9 +6,9 @@ const { setSetting, getSetting, getSettingsPrefix } = require('../db/database');
 const { setCustomEmoji, loadCustomEmojis } = require('../emoji');
 const { isAdmin, isStaff, parseQuantity } = require('../utils/helpers');
 const { createOrderChannel, refreshOrderPanel, logShop } = require('../services/channels');
+const { deliverToUser } = require('../services/delivery');
 const { buildShopPanel, buildProductDetail } = require('../ui/shop');
 const { buildCartPanel, buildItemManagePanel, buildCryptoSelect } = require('../ui/cart');
-const { buildDeliveryMessage } = require('../ui/order');
 const {
   buildAdminHome,
   buildProductsAdmin,
@@ -186,17 +186,24 @@ async function handleButton(interaction) {
       const order = orders.markPaid(orderId);
       await interaction.reply(notice(`${emoji('check')} Paiement confirmé pour ${order.public_id}.`));
       try {
-        const result = orders.deliverOrder(orderId);
-        await interaction.channel.send(buildDeliveryMessage(result.order, result.deliveries));
+        await deliverToUser(interaction.client, orderId);
+        await interaction.channel.send({
+          components: [
+            container(config.successColor).addTextDisplayComponents(
+              text(`${emoji('delivery')} Livraison envoyée en **MP** au client.`),
+            ),
+          ],
+          flags: V2,
+        });
         await logShop(
           interaction.client,
-          `${emoji('success')} ${order.public_id} payée & livrée par <@${interaction.user.id}>`,
+          `${emoji('success')} ${order.public_id} payée & livrée en DM par <@${interaction.user.id}>`,
         );
       } catch (e) {
         await interaction.channel.send({
           components: [
             container(config.warnColor).addTextDisplayComponents(
-              text(`${emoji('warn')} Payée mais livraison auto impossible: ${e.message}. Utilise **Livrer**.`),
+              text(`${emoji('warn')} Payée mais livraison DM impossible: ${e.message}. Utilise **Livrer**.`),
             ),
           ],
           flags: V2,
@@ -217,9 +224,8 @@ async function handleButton(interaction) {
         if (order.status === 'awaiting_payment' || order.status === 'pending') {
           orders.markPaid(orderId);
         }
-        const result = orders.deliverOrder(orderId);
-        await interaction.reply(notice(`${emoji('check')} Livraison effectuée.`));
-        await interaction.channel.send(buildDeliveryMessage(result.order, result.deliveries));
+        await deliverToUser(interaction.client, orderId);
+        await interaction.reply(notice(`${emoji('check')} Livraison envoyée en MP.`));
         await refreshOrderPanel(interaction.channel, orderId);
       } catch (e) {
         return interaction.reply(notice(`${emoji('cross')} ${e.message}`, config.dangerColor));
@@ -560,10 +566,13 @@ async function handleModal(interaction) {
         orders.setItemDelivery(item.id, payload);
       }
     }
-    const result = orders.deliverOrder(orderId);
-    await interaction.reply(notice(`${emoji('check')} Livraison manuelle envoyée.`));
-    await interaction.channel.send(buildDeliveryMessage(result.order, result.deliveries));
-    await refreshOrderPanel(interaction.channel, orderId);
+    try {
+      await deliverToUser(interaction.client, orderId);
+      await interaction.reply(notice(`${emoji('check')} Livraison manuelle envoyée en MP.`));
+      await refreshOrderPanel(interaction.channel, orderId);
+    } catch (e) {
+      return interaction.reply(notice(`${emoji('cross')} ${e.message}`, config.dangerColor));
+    }
   }
 }
 

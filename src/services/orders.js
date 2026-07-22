@@ -167,6 +167,11 @@ function cancelOrder(orderId, reason = '') {
 
   const tx = getDb().transaction(() => {
     products.releaseReservedKeys(orderId);
+    try {
+      require('./paymentAddresses').markAddressConsumedOnCancel(orderId);
+    } catch {
+      /* schema pas encore prêt */
+    }
 
     // Restore quantity stock for non-delivered quantity-mode items
     for (const item of order.items) {

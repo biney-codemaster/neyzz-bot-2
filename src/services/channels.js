@@ -1,7 +1,8 @@
 const { MessageFlags } = require('discord.js');
 const config = require('../config');
 const orders = require('../services/orders');
-const { buildOrderChannelPanel, buildPaymentInfoForOrder } = require('../ui/order');
+const payments = require('../services/payments');
+const { buildOrderChannelPanel } = require('../ui/order');
 const { emoji } = require('../emoji');
 const { text, container, V2 } = require('../ui/v2');
 
@@ -57,19 +58,49 @@ async function createOrderChannel(guild, user, order) {
   orders.setOrderChannel(order.id, channel.id);
   orders.markAwaitingPayment(order.id);
 
-  const fresh = orders.getOrder(order.id);
-  const paymentInfo = buildPaymentInfoForOrder(fresh);
+  let fresh = orders.getOrder(order.id);
+  let paymentInfo = null;
+
+  if (fresh.payment_method === 'crypto' && fresh.crypto_currency) {
+    paymentInfo = await payments.prepareCryptoPayment(fresh, fresh.crypto_currency);
+    fresh = orders.getOrder(order.id);
+  } else if (fresh.payment_method === 'paypal') {
+    paymentInfo = payments.buildPaypalPayment(fresh);
+  }
+
   const panel = buildOrderChannelPanel(fresh, paymentInfo);
 
   await channel.send({
     components: [
       container().addTextDisplayComponents(
-        text(`${emoji('box')} <@${user.id}> — ta commande est prête. Le staff a accès à ce salon.`),
+        text(
+          `${emoji('box')} <@${user.id}> — commande créée.\n${emoji('delivery')} La livraison partira en **MP** après paiement confirmé.`,
+        ),
       ),
       ...panel.components,
     ],
     flags: V2,
   });
+
+  if (paymentInfo) {
+    try {
+      await user.send({
+        components: [
+          container(config.warnColor).addTextDisplayComponents(
+            text(`# ${emoji(paymentInfo.method === 'paypal' ? 'paypal' : 'crypto')} ${paymentInfo.title}`),
+            text(`Commande **${fresh.public_id}**`),
+            text(paymentInfo.instructions),
+            paymentInfo.address
+              ? text(`${emoji('copy')} \`${paymentInfo.address}\``)
+              : text(paymentInfo.link || paymentInfo.email || ''),
+          ),
+        ],
+        flags: V2,
+      });
+    } catch {
+      /* MPs fermés — le salon suffit */
+    }
+  }
 
   return channel;
 }
@@ -77,9 +108,17 @@ async function createOrderChannel(guild, user, order) {
 async function refreshOrderPanel(channel, orderId) {
   const order = orders.getOrder(orderId);
   if (!order) return;
-  const paymentInfo = ['pending', 'awaiting_payment'].includes(order.status)
-    ? buildPaymentInfoForOrder(order)
-    : null;
+  let paymentInfo = null;
+  if (['pending', 'awaiting_payment'].includes(order.status)) {
+    if (order.payment_method === 'crypto') {
+      const row = require('./paymentAddresses').getAddressByOrder(order.id);
+      paymentInfo = row
+        ? payments.buildCryptoPayment(order, order.crypto_currency)
+        : null;
+    } else if (order.payment_method === 'paypal') {
+      paymentInfo = payments.buildPaypalPayment(order);
+    }
+  }
   await channel.send(buildOrderChannelPanel(order, paymentInfo));
 }
 
