@@ -252,11 +252,12 @@ function buildPaymentsAdmin() {
           ([coin, s]) => `• ${coin.toUpperCase()} — prochain index **#${s.nextIndex}** (${s.addressesUsed} adresses brûlées)`,
         ),
         '',
-        '_Chaque paiement = 1 adresse neuve, jamais réutilisée._',
-        '_L\'argent arrive sur CES adresses (à toi via la seed). Importe la mnemonic dans Electrum/MetaMask pour voir/regrouper les fonds._',
+        '_Chaque paiement = 1 adresse neuve (`ltc1…` / `bc1…`), jamais réutilisée._',
+        `${emoji('warn')} **Important LTC/BTC :** les fonds ne tombent PAS sur ton adresse Exodus/Trust.`,
+        '_Ils sont sur l\'adresse HD du bot. Utilise **Récupérer crypto** (WIF) ou Electrum-LTC BIP84 avec la même seed._',
         config.crypto.sweepAddress
           ? `Adresse de regroupement (info): \`${config.crypto.sweepAddress}\``
-          : '_Optionnel: CRYPTO_SWEEP_ADDRESS dans .env (adresse perso pour regrouper plus tard)._',
+          : '_Optionnel: CRYPTO_SWEEP_ADDRESS (rappel perso, pas l\'adresse de réception)._',
       ]
     : [
         `${emoji('warn')} HD Wallet **non configuré**`,
@@ -282,6 +283,7 @@ function buildPaymentsAdmin() {
       ),
       row(
         btn('admin:pay_paypal', 'Config PayPal', ButtonStyle.Primary, 'paypal'),
+        btn('admin:crypto_recover', 'Récupérer crypto', ButtonStyle.Danger, 'key'),
         btn('admin:home', 'Retour', ButtonStyle.Secondary, 'back'),
       ),
     ],

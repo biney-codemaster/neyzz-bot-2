@@ -2,6 +2,7 @@ const bip39 = require('bip39');
 const HDKey = require('hdkey');
 const bitcoin = require('bitcoinjs-lib');
 const ecc = require('tiny-secp256k1');
+const wif = require('wif');
 const { ethers } = require('ethers');
 const config = require('../config');
 
@@ -16,6 +17,7 @@ const COIN_META = {
     coingecko: 'bitcoin',
     pathPrefix: "m/84'/0'/0'/0",
     network: bitcoin.networks.bitcoin,
+    recoverHint: 'Electrum (Bitcoin) — BIP84 native segwit (bc1…)',
   },
   ltc: {
     id: 'ltc',
@@ -32,6 +34,8 @@ const COIN_META = {
       scriptHash: 0x32,
       wif: 0xb0,
     },
+    recoverHint:
+      'Electrum-LTC en BIP84 (ltc1…) — Exodus/Trust ne voient souvent PAS ces adresses',
   },
   eth: {
     id: 'eth',
@@ -40,6 +44,7 @@ const COIN_META = {
     decimals: 18,
     coingecko: 'ethereum',
     pathPrefix: "m/44'/60'/0'/0",
+    recoverHint: "MetaMask — m/44'/60'/0'/0/N",
   },
   usdt: {
     id: 'usdt',
@@ -48,6 +53,7 @@ const COIN_META = {
     decimals: 6,
     coingecko: 'tether',
     pathPrefix: "m/44'/60'/0'/0",
+    recoverHint: 'MetaMask (Ethereum) — même adresse ETH au même index',
   },
 };
 
@@ -67,6 +73,10 @@ function getRoot() {
   const seed = bip39.mnemonicToSeedSync(config.crypto.mnemonic);
   rootKey = HDKey.fromMasterSeed(seed);
   return rootKey;
+}
+
+function resetRootCache() {
+  rootKey = null;
 }
 
 function deriveNode(coinId, index) {
@@ -103,6 +113,37 @@ function deriveAddress(coinId, index) {
   };
 }
 
+/**
+ * Exporte la clé privée pour sweep / import.
+ * BTC/LTC → WIF | ETH/USDT → hex 0x…
+ */
+function exportPrivateKey(coinId, index) {
+  const { node, path, meta } = deriveNode(coinId, index);
+  const derived = deriveAddress(coinId, index);
+
+  if (coinId === 'btc' || coinId === 'ltc') {
+    const encoded = wif.encode({
+      version: meta.network.wif,
+      privateKey: Buffer.from(node.privateKey),
+      compressed: true,
+    });
+    return {
+      ...derived,
+      wif: encoded,
+      privateKeyHex: node.privateKey.toString('hex'),
+      recoverHint: meta.recoverHint,
+    };
+  }
+
+  const hex = `0x${node.privateKey.toString('hex')}`;
+  return {
+    ...derived,
+    privateKeyHex: hex,
+    wif: null,
+    recoverHint: meta.recoverHint,
+  };
+}
+
 function enabledCoins() {
   if (!isHdConfigured()) return [];
   return config.crypto.enabledCoins
@@ -114,10 +155,35 @@ function generateMnemonic() {
   return bip39.generateMnemonic(128);
 }
 
+/**
+ * Vérifie que la seed du .env dérive bien la même adresse que celle en DB.
+ */
+function verifyPaymentAddress(row) {
+  if (!row) return { ok: false, error: 'Adresse introuvable' };
+  try {
+    const derived = deriveAddress(row.coin, row.address_index);
+    const match = derived.address.toLowerCase() === String(row.address).toLowerCase();
+    return {
+      ok: match,
+      expected: derived.address,
+      stored: row.address,
+      path: derived.path,
+      error: match
+        ? null
+        : 'La seed actuelle ne correspond PAS à cette adresse (mauvaise CRYPTO_MNEMONIC ?)',
+    };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
 module.exports = {
   COIN_META,
   isHdConfigured,
   deriveAddress,
+  exportPrivateKey,
+  verifyPaymentAddress,
   enabledCoins,
   generateMnemonic,
+  resetRootCache,
 };

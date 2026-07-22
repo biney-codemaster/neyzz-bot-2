@@ -370,6 +370,9 @@ async function handleAdminButton(interaction) {
   if (id === 'admin:pay_crypto') {
     return interaction.showModal(modals.cryptoModal());
   }
+  if (id === 'admin:crypto_recover') {
+    return interaction.showModal(modals.recoverCryptoModal());
+  }
   if (id === 'admin:emoji_set') {
     return interaction.showModal(modals.emojiModal());
   }
@@ -619,6 +622,70 @@ async function handleModal(interaction) {
     setSetting('crypto_usdt', interaction.fields.getTextInputValue('usdt').trim());
     return interaction.reply({
       ...buildPaymentsAdmin(),
+      flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+    });
+  }
+
+  if (id === 'modal:crypto_recover') {
+    if (!isAdmin(interaction.member)) return interaction.reply(notice('Nope.', config.dangerColor));
+    const publicId = interaction.fields.getTextInputValue('public_id').trim().toUpperCase();
+    const order = orders.getOrderByPublicId(publicId);
+    if (!order) {
+      return interaction.reply(notice(`Commande \`${publicId}\` introuvable.`, config.dangerColor));
+    }
+    if (order.payment_method !== 'crypto') {
+      return interaction.reply(notice('Cette commande n\'est pas en crypto.', config.warnColor));
+    }
+    const row = require('../services/paymentAddresses').getAddressByOrder(order.id);
+    if (!row) {
+      return interaction.reply(notice('Aucune adresse HD liée à cette commande.', config.dangerColor));
+    }
+    const hd = require('../services/hdWallet');
+    const check = hd.verifyPaymentAddress(row);
+    if (!check.ok) {
+      return interaction.reply(
+        notice(
+          `${emoji('cross')} ${check.error || 'Seed invalide'}\nAdresse DB: \`${row.address}\`\nDérivée: \`${check.expected || '—'}\``,
+          config.dangerColor,
+        ),
+      );
+    }
+    const key = hd.exportPrivateKey(row.coin, row.address_index);
+    const explorer =
+      row.coin === 'ltc'
+        ? `https://blockchair.com/litecoin/address/${row.address}`
+        : row.coin === 'btc'
+          ? `https://mempool.space/address/${row.address}`
+          : `https://etherscan.io/address/${row.address}`;
+
+    return interaction.reply({
+      components: [
+        container(config.warnColor).addTextDisplayComponents(
+          text(`# ${emoji('key')} Récupération ${row.coin.toUpperCase()} — ${order.public_id}`),
+          text(
+            [
+              `${emoji('warn')} **Ne partage jamais cette clé.** Message éphémère — copie-la tout de suite.`,
+              '',
+              `Adresse : \`${row.address}\``,
+              `Chemin : \`${row.derivation_path}\``,
+              `Montant attendu : \`${row.expected_amount}\` ${row.coin.toUpperCase()}`,
+              `Reçu : \`${row.received_amount || '—'}\` · statut \`${row.status}\``,
+              `Explorer : ${explorer}`,
+              '',
+              key.wif
+                ? `**WIF (import Electrum-LTC / Electrum)** :\n\`\`\`\n${key.wif}\n\`\`\``
+                : `**Clé privée** :\n\`\`\`\n${key.privateKeyHex}\n\`\`\``,
+              '',
+              `${emoji('info')} ${key.recoverHint}`,
+              '',
+              '**Comment récupérer (LTC)** :',
+              '1. Ouvre Electrum-LTC',
+              '2. Wallet → Private keys → Import',
+              '3. Colle le WIF → envoie vers ton wallet perso',
+            ].join('\n'),
+          ),
+        ),
+      ],
       flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
     });
   }

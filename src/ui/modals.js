@@ -147,6 +147,15 @@ function manualDeliveryModal(orderId) {
     );
 }
 
+function recoverCryptoModal() {
+  return modal('modal:crypto_recover', 'Récupérer fonds crypto')
+    .addComponents(
+      input('public_id', 'ID commande (ex: CMD-XXXXXXXX)', {
+        placeholder: 'CMD-ABCD1234',
+      }),
+    );
+}
+
 module.exports = {
   productCreateModal,
   deliveryContentModal,
@@ -158,4 +167,5 @@ module.exports = {
   emojiModal,
   reviewModal,
   manualDeliveryModal,
+  recoverCryptoModal,
 };

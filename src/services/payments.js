@@ -116,6 +116,7 @@ function buildCryptoPaymentFromRow(order, row, quote = null) {
       note ? `${emoji('warn')} ${note}` : null,
       `${emoji('clock')} Dès que le réseau confirme (≥ ${conf} conf), livraison **auto en MP**.`,
       `${emoji('info')} N'envoie rien d'autre sur cette adresse.`,
+      `${emoji('lock')} Chemin HD : \`${row.derivation_path}\``,
     ]
       .filter(Boolean)
       .join('\n'),
