@@ -7,8 +7,17 @@ const { setCustomEmoji, loadCustomEmojis } = require('../emoji');
 const { isAdmin, isStaff, parseQuantity } = require('../utils/helpers');
 const { createOrderChannel, refreshOrderPanel, logShop } = require('../services/channels');
 const { deliverToUser } = require('../services/delivery');
+const shopPanels = require('../services/shopPanels');
 const { buildShopPanel, buildProductDetail } = require('../ui/shop');
 const { buildCartPanel, buildItemManagePanel, buildCryptoSelect } = require('../ui/cart');
+
+async function bumpShop(client) {
+  try {
+    await shopPanels.refreshAllShopPanels(client);
+  } catch (e) {
+    console.warn('[shop-panels]', e.message);
+  }
+}
 const {
   buildAdminHome,
   buildProductsAdmin,
@@ -67,7 +76,7 @@ async function handleButton(interaction) {
   const id = interaction.customId;
 
   if (id === 'shop:refresh') {
-    // Actualise le panel public (ou éphémère)
+    // Ancien bouton — la boutique se rafraîchit seule maintenant
     try {
       return await interaction.update(buildShopPanel());
     } catch {
@@ -154,6 +163,7 @@ async function handleButton(interaction) {
     }
     try {
       orders.cancelOrder(orderId, 'Annulée par le client');
+      await bumpShop(interaction.client);
       await interaction.reply(notice(`${emoji('check')} Commande annulée.`));
       await refreshOrderPanel(interaction.channel, orderId);
     } catch (e) {
@@ -308,14 +318,24 @@ async function handleAdminButton(interaction) {
   if (id === 'admin:post_shop') {
     const panel = buildShopPanel();
     const channel = interaction.channel;
-    await channel.send(panel);
-    return interaction.reply(notice(`${emoji('check')} Boutique postée dans ${channel}.`));
+    const msg = await channel.send(panel);
+    shopPanels.registerShopPanel({
+      channelId: channel.id,
+      messageId: msg.id,
+      guildId: interaction.guildId,
+    });
+    return interaction.reply(
+      notice(
+        `${emoji('check')} Boutique postée dans ${channel}.\nElle se mettra à jour **toute seule** quand tu modifies les produits.`,
+      ),
+    );
   }
 
   if (id.startsWith('admin:product_toggle:')) {
     const productId = Number(id.split(':')[2]);
     const p = products.getProduct(productId);
     products.updateProduct(productId, { active: p.active ? 0 : 1 });
+    await bumpShop(interaction.client);
     return adminUpdate(buildProductManage(products.getProduct(productId)));
   }
   if (id.startsWith('admin:product_keys:')) {
@@ -330,6 +350,7 @@ async function handleAdminButton(interaction) {
   if (id.startsWith('admin:product_delete:')) {
     const productId = Number(id.split(':')[2]);
     products.deleteProduct(productId);
+    await bumpShop(interaction.client);
     return adminUpdate(buildProductsAdmin());
   }
 }
@@ -357,6 +378,7 @@ async function handleSelect(interaction) {
 
       const order = orders.createOrderFromCart(interaction.user, value, null);
       const channel = await createOrderChannel(interaction.guild, interaction.user, order);
+      await bumpShop(interaction.client);
       await logShop(
         interaction.client,
         `${emoji('invoice')} Nouvelle commande **${order.public_id}** — <@${interaction.user.id}> — ${order.total.toFixed(2)}€ — ${value}`,
@@ -461,6 +483,7 @@ async function handleModal(interaction) {
       quantity,
       deliveryContent,
     });
+    await bumpShop(interaction.client);
     return interaction.reply({
       ...buildProductManage(product),
       flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
@@ -472,6 +495,7 @@ async function handleModal(interaction) {
     const productId = Number(id.split(':')[3]);
     const deliveryContent = interaction.fields.getTextInputValue('delivery_content').trim();
     const product = products.updateProduct(productId, { delivery_content: deliveryContent });
+    await bumpShop(interaction.client);
     return interaction.reply({
       ...buildProductManage(product),
       flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
@@ -487,6 +511,7 @@ async function handleModal(interaction) {
       .map((l) => l.trim())
       .filter(Boolean);
     const available = products.addKeys(productId, keys);
+    await bumpShop(interaction.client);
     return interaction.reply(
       notice(`${emoji('check')} ${keys.length} clé(s) ajoutée(s). Stock libre: **${available}**.`),
     );

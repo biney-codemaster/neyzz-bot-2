@@ -71,10 +71,7 @@ function buildShopPanel() {
   }
 
   components.push(
-    row(
-      btn('shop:open_cart', 'Mon panier', ButtonStyle.Primary, 'cart'),
-      btn('shop:refresh', 'Actualiser', ButtonStyle.Secondary, 'refresh'),
-    ),
+    row(btn('shop:open_cart', 'Mon panier', ButtonStyle.Primary, 'cart')),
   );
 
   return { components, flags: V2 };

@@ -30,7 +30,13 @@ function btn(customId, label, style = ButtonStyle.Secondary, emojiKey = null) {
   const b = new ButtonBuilder().setCustomId(customId).setLabel(label).setStyle(style);
   if (emojiKey) {
     const e = emojiComponent(emojiKey);
-    if (e) b.setEmoji(e);
+    if (e?.name || e?.id) {
+      try {
+        b.setEmoji(e);
+      } catch {
+        /* emoji invalide → bouton sans emoji */
+      }
+    }
   }
   return b;
 }
@@ -47,7 +53,13 @@ function select(customId, placeholder, options) {
         if (opt.description) o.setDescription(truncate(opt.description, 100));
         if (opt.emojiKey) {
           const e = emojiComponent(opt.emojiKey);
-          if (e) o.setEmoji(e);
+          if (e?.name || e?.id) {
+            try {
+              o.setEmoji(e);
+            } catch {
+              /* ignore */
+            }
+          }
         }
         return o;
       }),

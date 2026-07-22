@@ -1,12 +1,9 @@
 /**
  * Centralisation des emojis du bot.
  *
- * - UNICODE : emojis par défaut (toujours disponibles)
- * - CUSTOM  : remplacements par des emojis perso du serveur
- *             ex. cart: '<:panier:1234567890123456789>'
- *             ou  cart: { id: '123...', name: 'panier', animated: false }
- *
- * Tu peux aussi les écraser via /admin → Emojis, ou en DB (table settings).
+ * - UNICODE : pour le texte (TextDisplay)
+ * - COMPONENT : emojis Discord-safe pour boutons / select (pas de ₿ Ξ Ł ₮ etc.)
+ * - CUSTOM : remplacements perso serveur
  */
 
 const UNICODE = {
@@ -54,18 +51,55 @@ const UNICODE = {
   copy: '📋',
 };
 
-/** @type {Record<string, string | { id: string, name: string, animated?: boolean }>} */
-const CUSTOM = {
-  // Exemple pour plus tard :
-  // cart: '<:panier:1234567890123456789>',
-  // shop: { id: '1234567890123456789', name: 'boutique', animated: false },
+/** Emojis valides pour setEmoji() Discord (boutons / menus) */
+const COMPONENT = {
+  shop: '🏪',
+  cart: '🛒',
+  product: '📦',
+  stock: '📊',
+  money: '💶',
+  paypal: '💙',
+  crypto: '🪙',
+  btc: '🟠',
+  eth: '🔷',
+  ltc: '⚪',
+  usdt: '🟢',
+  check: '✅',
+  cross: '❌',
+  warn: '⚠️',
+  info: 'ℹ️',
+  lock: '🔒',
+  key: '🔑',
+  box: '📬',
+  invoice: '🧾',
+  coupon: '🎫',
+  star: '⭐',
+  review: '💬',
+  admin: '🛠️',
+  settings: '⚙️',
+  add: '➕',
+  remove: '➖',
+  trash: '🗑️',
+  edit: '✏️',
+  back: '◀️',
+  next: '▶️',
+  refresh: '🔄',
+  user: '👤',
+  staff: '🛡️',
+  clock: '⏱️',
+  success: '✨',
+  pending: '⏳',
+  delivery: '🚚',
+  manual: '✋',
+  auto: '⚡',
+  channel: '📁',
+  link: '🔗',
+  copy: '📋',
 };
 
-/**
- * Retourne l'emoji (string) pour l'affichage texte / labels.
- * @param {keyof typeof UNICODE | string} key
- * @returns {string}
- */
+/** @type {Record<string, string | { id: string, name: string, animated?: boolean }>} */
+const CUSTOM = {};
+
 function emoji(key) {
   const custom = CUSTOM[key];
   if (typeof custom === 'string' && custom.length) return custom;
@@ -76,16 +110,14 @@ function emoji(key) {
 }
 
 /**
- * Format attendu par setEmoji() de discord.js (boutons / options).
- * @param {keyof typeof UNICODE | string} key
- * @returns {{ name: string, id?: string, animated?: boolean } | undefined}
+ * Format pour setEmoji() — jamais de symboles invalides (₿, Ξ…).
  */
 function emojiComponent(key) {
   const custom = CUSTOM[key];
   if (custom && typeof custom === 'object' && custom.id) {
     return {
       id: custom.id,
-      name: custom.name,
+      name: custom.name || 'emoji',
       animated: Boolean(custom.animated),
     };
   }
@@ -99,40 +131,36 @@ function emojiComponent(key) {
       };
     }
   }
-  const uni = (typeof custom === 'string' && custom.length ? custom : UNICODE[key]) || null;
-  if (!uni) return undefined;
-  // Unicode emoji → { name: '🛒' }
-  return { name: uni };
+  // Custom unicode valide uniquement s'il est aussi dans COMPONENT ou est un emoji "standard"
+  if (typeof custom === 'string' && custom.length && COMPONENT[key]) {
+    // Si custom est un short unicode douteux, préférer COMPONENT
+    if (/^[₿ΞŁ₮]$/.test(custom)) {
+      return { name: COMPONENT[key] };
+    }
+    return { name: custom };
+  }
+  const safe = COMPONENT[key];
+  if (!safe) return undefined;
+  return { name: safe };
 }
 
-/**
- * Remplace / ajoute un emoji custom en mémoire (et optionnellement en DB).
- * @param {string} key
- * @param {string | { id: string, name: string, animated?: boolean }} value
- */
 function setCustomEmoji(key, value) {
   CUSTOM[key] = value;
 }
 
-/**
- * Charge les overrides depuis un objet plat { key: valueString }.
- * @param {Record<string, string>} map
- */
 function loadCustomEmojis(map = {}) {
   for (const [key, value] of Object.entries(map)) {
     if (value) CUSTOM[key] = value;
   }
 }
 
-/**
- * Liste toutes les clés disponibles (pour le panel admin).
- */
 function listEmojiKeys() {
   return Object.keys(UNICODE);
 }
 
 module.exports = {
   UNICODE,
+  COMPONENT,
   CUSTOM,
   emoji,
   emojiComponent,

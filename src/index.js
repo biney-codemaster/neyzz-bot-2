@@ -25,6 +25,7 @@ const { container, text } = require('./ui/v2');
 const { emoji } = require('./emoji');
 const { isHdConfigured } = require('./services/hdWallet');
 const paymentAddresses = require('./services/paymentAddresses');
+const shopPanels = require('./services/shopPanels');
 const { startCryptoWatcher } = require('./services/cryptoWatcher');
 
 if (!config.token) {
@@ -34,6 +35,7 @@ if (!config.token) {
 
 getDb();
 paymentAddresses.ensureSchema();
+shopPanels.ensureSchema();
 reloadEmojisFromDb();
 
 const client = new Client({

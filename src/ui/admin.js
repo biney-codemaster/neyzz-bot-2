@@ -55,7 +55,7 @@ function buildAdminHome() {
         btn('admin:payments', 'Paiements', ButtonStyle.Secondary, 'money'),
         btn('admin:emojis', 'Emojis', ButtonStyle.Secondary, 'settings'),
         btn('admin:post_shop', 'Poster la boutique', ButtonStyle.Success, 'shop'),
-        btn('admin:refresh', 'Actualiser', ButtonStyle.Secondary, 'refresh'),
+        btn('admin:refresh', 'Actualiser panel', ButtonStyle.Secondary, 'refresh'),
       ),
     ],
     flags: V2,
