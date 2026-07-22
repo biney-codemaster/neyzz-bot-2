@@ -69,12 +69,18 @@ async function createOrderChannel(guild, user, order) {
   }
 
   const panel = buildOrderChannelPanel(fresh, paymentInfo);
+  const isCrypto = fresh.payment_method === 'crypto';
 
   await channel.send({
     components: [
       container().addTextDisplayComponents(
         text(
-          `${emoji('box')} <@${user.id}> — commande créée.\n${emoji('delivery')} La livraison partira en **MP** après paiement confirmé.`,
+          [
+            `${emoji('box')} <@${user.id}> — commande créée.`,
+            isCrypto
+              ? `${emoji('crypto')} Paie à l'adresse ci-dessous — détection **auto**, livraison en **MP**.`
+              : `${emoji('delivery')} Après confirmation du paiement, la livraison partira en **MP**.`,
+          ].join('\n'),
         ),
       ),
       ...panel.components,
@@ -82,25 +88,7 @@ async function createOrderChannel(guild, user, order) {
     flags: V2,
   });
 
-  if (paymentInfo) {
-    try {
-      await user.send({
-        components: [
-          container(config.warnColor).addTextDisplayComponents(
-            text(`# ${emoji(paymentInfo.method === 'paypal' ? 'paypal' : 'crypto')} ${paymentInfo.title}`),
-            text(`Commande **${fresh.public_id}**`),
-            text(paymentInfo.instructions),
-            paymentInfo.address
-              ? text(`${emoji('copy')} \`${paymentInfo.address}\``)
-              : text(paymentInfo.link || paymentInfo.email || ''),
-          ),
-        ],
-        flags: V2,
-      });
-    } catch {
-      /* MPs fermés — le salon suffit */
-    }
-  }
+  // Pas de MP d'instructions — tout reste dans le salon commande
 
   return channel;
 }

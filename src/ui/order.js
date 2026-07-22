@@ -26,6 +26,7 @@ function statusLabel(status) {
 }
 
 function buildOrderChannelPanel(order, paymentInfo = null) {
+  const isCrypto = order.payment_method === 'crypto';
   const invoice = orders.formatInvoice(order);
   const c = container()
     .addTextDisplayComponents(
@@ -64,10 +65,16 @@ function buildOrderChannelPanel(order, paymentInfo = null) {
     );
   }
 
+  // Boutons client
   const customerBtns = [];
   if (['pending', 'awaiting_payment'].includes(order.status)) {
+    // Crypto = détection auto → pas de "J'ai payé"
+    if (!isCrypto) {
+      customerBtns.push(
+        btn(`order:paid:${order.id}`, 'J\'ai payé', ButtonStyle.Success, 'check'),
+      );
+    }
     customerBtns.push(
-      btn(`order:paid:${order.id}`, 'J\'ai payé', ButtonStyle.Success, 'check'),
       btn(`order:cancel:${order.id}`, 'Annuler', ButtonStyle.Danger, 'cross'),
     );
   }
@@ -76,23 +83,27 @@ function buildOrderChannelPanel(order, paymentInfo = null) {
       btn(`order:review:${order.id}`, 'Laisser un avis', ButtonStyle.Primary, 'star'),
     );
   }
-  if (customerBtns.length) components.push(row(...customerBtns));
+  if (customerBtns.length) components.push(row(...customerBtns.slice(0, 5)));
 
-  if (order.payment_method === 'crypto' && ['pending', 'awaiting_payment'].includes(order.status)) {
+  if (isCrypto && ['pending', 'awaiting_payment'].includes(order.status)) {
     components.push(
       container(config.accentColor).addTextDisplayComponents(
         text(
-          `${emoji('crypto')} Surveillance on-chain active — livraison en **MP** après confirmation réseau.`,
+          `${emoji('crypto')} Paiement surveillé automatiquement — pas besoin de cliquer quoi que ce soit.\nLivraison en **MP** dès confirmation réseau.`,
         ),
       ),
     );
   }
 
-  // Staff : boutons selon le statut (pas de spam / pas de doublon d'action)
+  // Staff
   const staffBtns = [];
   if (['pending', 'awaiting_payment'].includes(order.status)) {
+    if (!isCrypto) {
+      staffBtns.push(
+        btn(`staff:confirm_pay:${order.id}`, 'Confirmer paiement', ButtonStyle.Success, 'money'),
+      );
+    }
     staffBtns.push(
-      btn(`staff:confirm_pay:${order.id}`, 'Confirmer paiement', ButtonStyle.Success, 'money'),
       btn(`staff:cancel:${order.id}`, 'Annuler', ButtonStyle.Danger, 'trash'),
     );
   } else if (['paid', 'partial'].includes(order.status)) {
@@ -107,13 +118,14 @@ function buildOrderChannelPanel(order, paymentInfo = null) {
       container(config.accentColor).addTextDisplayComponents(
         text(`${emoji('staff')} **Zone staff**`),
       ),
-      row(...staffBtns),
+      row(...staffBtns.slice(0, 5)),
     );
-  } else if (order.status === 'delivered') {
+  }
+
+  // Un seul bouton Fermer (évite custom_id dupliqué)
+  if (['delivered', 'cancelled'].includes(order.status) && !order.closed_at) {
     components.push(
-      container(config.successColor).addTextDisplayComponents(
-        text(`${emoji('check')} Commande livrée — plus d'action staff.`),
-      ),
+      row(btn(`order:close:${order.id}`, 'Fermer + transcript', ButtonStyle.Danger, 'lock')),
     );
   }
 
@@ -146,9 +158,12 @@ function buildDeliveryMessage(order, deliveries) {
     );
 
   const components = [c];
-  if (order.status === 'delivered') {
+  if (order.status === 'delivered' && !order.closed_at) {
     components.push(
-      row(btn(`order:review:${order.id}`, 'Laisser un avis', ButtonStyle.Primary, 'star')),
+      row(
+        btn(`order:review:${order.id}`, 'Laisser un avis', ButtonStyle.Primary, 'star'),
+        btn(`order:close:${order.id}`, 'Fermer + transcript', ButtonStyle.Danger, 'lock'),
+      ),
     );
   }
   return { components, flags: V2 };

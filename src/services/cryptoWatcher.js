@@ -234,20 +234,19 @@ async function processPaymentRow(client, row) {
       if (fresh.channel_id) {
         try {
           const ch = await client.channels.fetch(fresh.channel_id);
-          const { buildDeliveryMessage } = require('../ui/order');
+          const { buildOrderChannelPanel } = require('../ui/order');
+          const { container, text, V2 } = require('../ui/v2');
           await ch.send({
             components: [
-              require('../ui/v2').container(config.successColor).addTextDisplayComponents(
-                require('../ui/v2').text(
-                  `${emoji('check')} Paiement crypto confirmé on-chain.\nLivraison envoyée en **MP** au client.`,
+              container(config.successColor).addTextDisplayComponents(
+                text(
+                  `${emoji('check')} Paiement crypto confirmé on-chain.\nLivraison envoyée en **MP** au client.\nTu peux **Fermer** le salon pour recevoir le transcript.`,
                 ),
               ),
+              ...buildOrderChannelPanel(orders.getOrder(fresh.id), null).components,
             ],
-            flags: require('../ui/v2').V2,
+            flags: V2,
           });
-          if (delivery?.deliveries) {
-            // ne renvoie pas les clés dans le salon public de commande — déjà en DM
-          }
         } catch {
           /* ignore */
         }

@@ -7,6 +7,7 @@ const { setCustomEmoji, loadCustomEmojis } = require('../emoji');
 const { isAdmin, isStaff, parseQuantity } = require('../utils/helpers');
 const { createOrderChannel, refreshOrderPanel, logShop } = require('../services/channels');
 const { deliverToUser } = require('../services/delivery');
+const { closeOrderWithTranscript } = require('../services/transcript');
 const shopPanels = require('../services/shopPanels');
 const { buildShopPanel, buildProductDetail } = require('../ui/shop');
 const { buildCartPanel, buildItemManagePanel, buildCryptoSelect } = require('../ui/cart');
@@ -137,6 +138,11 @@ async function handleButton(interaction) {
     if (!order || order.user_id !== interaction.user.id) {
       return interaction.reply(notice('Commande introuvable.', config.dangerColor));
     }
+    if (order.payment_method === 'crypto') {
+      return interaction.reply(
+        notice(`${emoji('info')} Paiement crypto détecté automatiquement — pas besoin de signaler.`, config.accentColor),
+      );
+    }
     await logShop(
       interaction.client,
       `${emoji('pending')} <@${interaction.user.id}> signale un paiement pour **${order.public_id}** (${order.payment_method}).`,
@@ -152,6 +158,53 @@ async function handleButton(interaction) {
       ],
       flags: V2,
     });
+    return;
+  }
+
+  if (id.startsWith('order:close:')) {
+    const orderId = Number(id.split(':')[2]);
+    const order = orders.getOrder(orderId);
+    if (!order) return interaction.reply(notice('Commande introuvable.', config.dangerColor));
+    const allowed =
+      order.user_id === interaction.user.id || isStaff(interaction.member);
+    if (!allowed) {
+      return interaction.reply(notice('Tu ne peux pas fermer cette commande.', config.dangerColor));
+    }
+    if (!['delivered', 'cancelled'].includes(order.status)) {
+      return interaction.reply(
+        notice('Tu peux fermer seulement une commande livrée ou annulée.', config.warnColor),
+      );
+    }
+    if (order.closed_at) {
+      return interaction.reply(notice('Déjà fermée.', config.warnColor));
+    }
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    try {
+      await closeOrderWithTranscript(interaction.client, {
+        orderId,
+        closedByUser: interaction.user,
+        channel: interaction.channel,
+      });
+      await interaction.editReply({
+        components: [
+          container(config.successColor).addTextDisplayComponents(
+            text(
+              `${emoji('check')} Transcript HTML envoyé en **MP** + salon logs.\nSalon supprimé dans quelques secondes.`,
+            ),
+          ),
+        ],
+        flags: MessageFlags.IsComponentsV2,
+      });
+    } catch (e) {
+      await interaction.editReply({
+        components: [
+          container(config.dangerColor).addTextDisplayComponents(
+            text(`${emoji('cross')} ${e.message}`),
+          ),
+        ],
+        flags: MessageFlags.IsComponentsV2,
+      });
+    }
     return;
   }
 
@@ -195,6 +248,11 @@ async function handleButton(interaction) {
     if (action === 'confirm_pay') {
       const current = orders.getOrder(orderId);
       if (!current) return interaction.reply(notice('Commande introuvable.', config.dangerColor));
+      if (current.payment_method === 'crypto') {
+        return interaction.reply(
+          notice(`${emoji('info')} Crypto = confirmation automatique on-chain. Pas besoin de ce bouton.`, config.accentColor),
+        );
+      }
       if (!['pending', 'awaiting_payment'].includes(current.status)) {
         return interaction.reply(
           notice(`${emoji('warn')} Paiement déjà traité (statut: \`${current.status}\`).`, config.warnColor),
@@ -249,6 +307,7 @@ async function handleButton(interaction) {
     if (action === 'cancel') {
       try {
         orders.cancelOrder(orderId, `Annulée par staff ${interaction.user.tag}`);
+        await bumpShop(interaction.client);
         await interaction.reply(notice('Commande annulée.'));
         await refreshOrderPanel(interaction.channel, orderId);
       } catch (e) {
@@ -395,6 +454,7 @@ async function handleSelect(interaction) {
     try {
       const order = orders.createOrderFromCart(interaction.user, 'crypto', value);
       const channel = await createOrderChannel(interaction.guild, interaction.user, order);
+      await bumpShop(interaction.client);
       await logShop(
         interaction.client,
         `${emoji('invoice')} **${order.public_id}** crypto=${value} — <@${interaction.user.id}> — ${order.total.toFixed(2)}€`,

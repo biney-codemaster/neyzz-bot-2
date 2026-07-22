@@ -189,12 +189,21 @@ function cancelOrder(orderId, reason = '') {
     getDb()
       .prepare(
         `UPDATE orders
-         SET status = 'cancelled', closed_at = datetime('now'), notes = TRIM(COALESCE(notes,'') || ?)
+         SET status = 'cancelled', notes = TRIM(COALESCE(notes,'') || ?)
          WHERE id = ?`,
       )
       .run(reason ? `\nAnnulation: ${reason}` : '', orderId);
   });
   tx();
+  return getOrder(orderId);
+}
+
+function markClosed(orderId) {
+  getDb()
+    .prepare(
+      `UPDATE orders SET closed_at = datetime('now') WHERE id = ?`,
+    )
+    .run(orderId);
   return getOrder(orderId);
 }
 
@@ -319,6 +328,7 @@ module.exports = {
   markPaid,
   markDelivered,
   markAwaitingPayment,
+  markClosed,
   cancelOrder,
   deliverOrder,
   setItemDelivery,
