@@ -142,7 +142,9 @@ function buildCryptoSelect(token = 'pending') {
         cryptos.map((c) => ({
           label: c.label,
           value: c.id,
-          description: `${c.address.slice(0, 18)}…`,
+          description: c.hd
+            ? 'Adresse HD unique générée à la commande'
+            : `${String(c.address || '').slice(0, 18)}…`,
           emojiKey: c.emojiKey,
         })),
       ),

@@ -109,6 +109,10 @@ function buildProductsAdmin() {
 }
 
 function buildProductManage(product) {
+  const contentPreview = product.delivery_content
+    ? product.delivery_content.slice(0, 80) + (product.delivery_content.length > 80 ? '…' : '')
+    : '_Aucun — pour auto+quantity, définis un contenu ou ajoute des clés_';
+
   return {
     components: [
       container()
@@ -120,48 +124,61 @@ function buildProductManage(product) {
               `${emoji('money')} ${money(product.price)}`,
               `Livraison: **${product.delivery_type}** · Stock: **${product.stock_mode}** (${product.stock_mode === 'unlimited' ? '∞' : product.available})`,
               `Actif: **${product.active ? 'oui' : 'non'}**`,
+              `${emoji('key')} Contenu livraison auto: ${contentPreview}`,
             ].join('\n'),
           ),
         ),
       row(
         btn(`admin:product_toggle:${product.id}`, product.active ? 'Désactiver' : 'Activer', ButtonStyle.Primary, 'settings'),
         btn(`admin:product_keys:${product.id}`, 'Ajouter des clés', ButtonStyle.Secondary, 'key'),
-        btn(`admin:product_delete:${product.id}`, 'Supprimer', ButtonStyle.Danger, 'trash'),
+        btn(`admin:product_content:${product.id}`, 'Contenu livraison', ButtonStyle.Secondary, 'box'),
       ),
-      row(btn('admin:products', 'Retour produits', ButtonStyle.Secondary, 'back')),
+      row(
+        btn(`admin:product_delete:${product.id}`, 'Supprimer', ButtonStyle.Danger, 'trash'),
+        btn('admin:products', 'Retour produits', ButtonStyle.Secondary, 'back'),
+      ),
     ],
     flags: V2,
   };
 }
 
 function buildStockAdmin() {
-  const list = products.listProducts({ activeOnly: false }).filter((p) => p.stock_mode === 'keys');
-  return {
-    components: [
-      container().addTextDisplayComponents(
-        text(`# ${emoji('stock')} Stock de clés`),
-        text(
-          list.length
-            ? list.map((p) => `**#${p.id} ${p.name}** — ${p.available} clé(s) libre(s)`).join('\n')
-            : 'Aucun produit en mode `keys`.',
-        ),
+  const list = products.listProducts({ activeOnly: false });
+  const components = [
+    container().addTextDisplayComponents(
+      text(`# ${emoji('stock')} Stock / contenu`),
+      text(
+        list.length
+          ? list
+              .map((p) => {
+                const stock =
+                  p.stock_mode === 'unlimited' ? '∞' : String(p.available);
+                const hasContent = p.delivery_content ? 'contenu OK' : 'pas de contenu';
+                return `**#${p.id} ${p.name}** — ${p.stock_mode} (${stock}) · ${hasContent}`;
+              })
+              .join('\n')
+          : 'Aucun produit.',
       ),
-      list.length
-        ? select(
-            'admin:stock_product',
-            'Ajouter des clés à…',
-            list.slice(0, 25).map((p) => ({
-              label: `#${p.id} ${p.name}`,
-              value: String(p.id),
-              description: `${p.available} dispo`,
-              emojiKey: 'key',
-            })),
-          )
-        : row(btn('admin:home', 'Retour', ButtonStyle.Secondary, 'back')),
-      row(btn('admin:home', 'Retour', ButtonStyle.Secondary, 'back')),
-    ],
-    flags: V2,
-  };
+    ),
+  ];
+
+  if (list.length) {
+    components.push(
+      select(
+        'admin:stock_product',
+        'Ajouter des clés à…',
+        list.slice(0, 25).map((p) => ({
+          label: `#${p.id} ${p.name}`,
+          value: String(p.id),
+          description: `${p.stock_mode} · ${p.available === Infinity ? '∞' : p.available}`,
+          emojiKey: 'key',
+        })),
+      ),
+    );
+  }
+
+  components.push(row(btn('admin:home', 'Retour', ButtonStyle.Secondary, 'back')));
+  return { components, flags: V2 };
 }
 
 function buildCouponsAdmin() {

@@ -42,13 +42,14 @@ function createProduct({
   deliveryType = 'auto',
   stockMode = 'keys',
   quantity = 0,
+  deliveryContent = '',
 }) {
   const result = getDb()
     .prepare(
-      `INSERT INTO products (name, description, price, delivery_type, stock_mode, quantity)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO products (name, description, price, delivery_type, stock_mode, quantity, delivery_content)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(name, description, price, deliveryType, stockMode, quantity);
+    .run(name, description, price, deliveryType, stockMode, quantity, deliveryContent);
   return getProduct(result.lastInsertRowid);
 }
 
@@ -62,6 +63,7 @@ function updateProduct(id, fields) {
     'quantity',
     'active',
     'position',
+    'delivery_content',
   ];
   const sets = [];
   const values = [];
@@ -139,6 +141,29 @@ function consumeReservedKeys(orderId) {
   return keys;
 }
 
+/**
+ * Prend N clés libres pour un produit (même si stock_mode != keys),
+ * les marque utilisées pour orderId. Utile si quelqu'un a ajouté des clés
+ * sur un produit quantity/unlimited.
+ */
+function takeFreeKeys(productId, quantity, orderId) {
+  const keys = getDb()
+    .prepare(
+      `SELECT id, product_id, payload FROM product_keys
+       WHERE product_id = ? AND used_order_id IS NULL AND reserved_order_id IS NULL
+       LIMIT ?`,
+    )
+    .all(productId, quantity);
+
+  if (!keys.length) return [];
+
+  const upd = getDb().prepare(
+    'UPDATE product_keys SET used_order_id = ? WHERE id = ?',
+  );
+  for (const key of keys) upd.run(orderId, key.id);
+  return keys;
+}
+
 function releaseReservedKeys(orderId) {
   getDb()
     .prepare(
@@ -167,6 +192,7 @@ module.exports = {
   getAvailableStock,
   reserveKeys,
   consumeReservedKeys,
+  takeFreeKeys,
   releaseReservedKeys,
   decrementQuantity,
 };

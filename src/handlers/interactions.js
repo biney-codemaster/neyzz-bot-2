@@ -183,32 +183,23 @@ async function handleButton(interaction) {
     const orderId = Number(orderIdRaw);
 
     if (action === 'confirm_pay') {
-      const order = orders.markPaid(orderId);
-      await interaction.reply(notice(`${emoji('check')} Paiement confirmé pour ${order.public_id}.`));
-      try {
-        await deliverToUser(interaction.client, orderId);
-        await interaction.channel.send({
-          components: [
-            container(config.successColor).addTextDisplayComponents(
-              text(`${emoji('delivery')} Livraison envoyée en **MP** au client.`),
-            ),
-          ],
-          flags: V2,
-        });
-        await logShop(
-          interaction.client,
-          `${emoji('success')} ${order.public_id} payée & livrée en DM par <@${interaction.user.id}>`,
+      const current = orders.getOrder(orderId);
+      if (!current) return interaction.reply(notice('Commande introuvable.', config.dangerColor));
+      if (!['pending', 'awaiting_payment'].includes(current.status)) {
+        return interaction.reply(
+          notice(`${emoji('warn')} Paiement déjà traité (statut: \`${current.status}\`).`, config.warnColor),
         );
-      } catch (e) {
-        await interaction.channel.send({
-          components: [
-            container(config.warnColor).addTextDisplayComponents(
-              text(`${emoji('warn')} Payée mais livraison DM impossible: ${e.message}. Utilise **Livrer**.`),
-            ),
-          ],
-          flags: V2,
-        });
       }
+      const order = orders.markPaid(orderId);
+      await interaction.reply(
+        notice(
+          `${emoji('check')} Paiement confirmé pour **${order.public_id}**.\nUtilise **Livrer (MP)** pour envoyer le produit.`,
+        ),
+      );
+      await logShop(
+        interaction.client,
+        `${emoji('money')} ${order.public_id} paiement confirmé par <@${interaction.user.id}> (pas encore livré)`,
+      );
       await refreshOrderPanel(interaction.channel, orderId);
       return;
     }
@@ -216,16 +207,28 @@ async function handleButton(interaction) {
     if (action === 'deliver') {
       const order = orders.getOrder(orderId);
       if (!order) return interaction.reply(notice('Commande introuvable.', config.dangerColor));
+      if (order.status === 'delivered') {
+        return interaction.reply(notice(`${emoji('warn')} Déjà livrée.`, config.warnColor));
+      }
+      if (!['paid', 'partial'].includes(order.status)) {
+        return interaction.reply(
+          notice(
+            `${emoji('warn')} Confirme d'abord le paiement avant de livrer (statut: \`${order.status}\`).`,
+            config.warnColor,
+          ),
+        );
+      }
       const hasManual = order.items.some((i) => i.delivery_type === 'manual' && !i.delivered_payload);
       if (hasManual) {
         return interaction.showModal(modals.manualDeliveryModal(orderId));
       }
       try {
-        if (order.status === 'awaiting_payment' || order.status === 'pending') {
-          orders.markPaid(orderId);
-        }
         await deliverToUser(interaction.client, orderId);
         await interaction.reply(notice(`${emoji('check')} Livraison envoyée en MP.`));
+        await logShop(
+          interaction.client,
+          `${emoji('delivery')} ${order.public_id} livrée en DM par <@${interaction.user.id}>`,
+        );
         await refreshOrderPanel(interaction.channel, orderId);
       } catch (e) {
         return interaction.reply(notice(`${emoji('cross')} ${e.message}`, config.dangerColor));
@@ -318,6 +321,11 @@ async function handleAdminButton(interaction) {
   if (id.startsWith('admin:product_keys:')) {
     const productId = Number(id.split(':')[2]);
     return interaction.showModal(modals.keysModal(productId));
+  }
+  if (id.startsWith('admin:product_content:')) {
+    const productId = Number(id.split(':')[2]);
+    const p = products.getProduct(productId);
+    return interaction.showModal(modals.deliveryContentModal(productId, p?.delivery_content || ''));
   }
   if (id.startsWith('admin:product_delete:')) {
     const productId = Number(id.split(':')[2]);
@@ -412,9 +420,9 @@ async function handleModal(interaction) {
     if (!isAdmin(interaction.member)) return interaction.reply(notice('Nope.', config.dangerColor));
     const name = interaction.fields.getTextInputValue('name').trim();
     const price = Number(interaction.fields.getTextInputValue('price').replace(',', '.'));
-    const description = interaction.fields.getTextInputValue('description').trim();
     const delivery = interaction.fields.getTextInputValue('delivery').trim().toLowerCase();
     const stockRaw = interaction.fields.getTextInputValue('stock').trim().toLowerCase();
+    const deliveryContent = interaction.fields.getTextInputValue('delivery_content').trim();
 
     if (!name || !Number.isFinite(price) || price < 0) {
       return interaction.reply(notice('Nom / prix invalide.', config.dangerColor));
@@ -435,14 +443,35 @@ async function handleModal(interaction) {
       stockMode = 'keys';
     }
 
+    if (delivery === 'auto' && stockMode !== 'keys' && !deliveryContent) {
+      return interaction.reply(
+        notice(
+          `${emoji('warn')} Pour auto + quantity/unlimited, indique un **contenu de livraison** (la clé/texte envoyé en MP).`,
+          config.warnColor,
+        ),
+      );
+    }
+
     const product = products.createProduct({
       name,
-      description,
+      description: '',
       price,
       deliveryType: delivery,
       stockMode,
       quantity,
+      deliveryContent,
     });
+    return interaction.reply({
+      ...buildProductManage(product),
+      flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+    });
+  }
+
+  if (id.startsWith('modal:product_content:')) {
+    if (!isAdmin(interaction.member)) return interaction.reply(notice('Nope.', config.dangerColor));
+    const productId = Number(id.split(':')[3]);
+    const deliveryContent = interaction.fields.getTextInputValue('delivery_content').trim();
+    const product = products.updateProduct(productId, { delivery_content: deliveryContent });
     return interaction.reply({
       ...buildProductManage(product),
       flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,

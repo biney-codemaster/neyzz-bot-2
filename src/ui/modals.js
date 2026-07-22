@@ -26,15 +26,27 @@ function productCreateModal() {
     .addComponents(
       input('name', 'Nom du produit', { placeholder: 'Nitro 1 mois' }),
       input('price', 'Prix (€)', { placeholder: '9.99' }),
-      input('description', 'Description', {
-        style: TextInputStyle.Paragraph,
-        required: false,
-        placeholder: 'Description courte',
-      }),
       input('delivery', 'Livraison: auto ou manual', { placeholder: 'auto', value: 'auto' }),
       input('stock', 'Stock: keys, unlimited ou quantity:50', {
         placeholder: 'keys',
         value: 'keys',
+      }),
+      input('delivery_content', 'Contenu livré (auto / quantity)', {
+        style: TextInputStyle.Paragraph,
+        required: false,
+        placeholder: 'La clé ou le texte envoyé en MP au client',
+      }),
+    );
+}
+
+function deliveryContentModal(productId, current = '') {
+  return modal(`modal:product_content:${productId}`, 'Contenu de livraison')
+    .addComponents(
+      input('delivery_content', 'Texte / clé envoyé en MP (auto)', {
+        style: TextInputStyle.Paragraph,
+        required: true,
+        value: current || undefined,
+        placeholder: 'XXXX-XXXX-XXXX',
       }),
     );
 }
@@ -137,6 +149,7 @@ function manualDeliveryModal(orderId) {
 
 module.exports = {
   productCreateModal,
+  deliveryContentModal,
   keysModal,
   couponCreateModal,
   couponCartModal,

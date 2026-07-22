@@ -125,6 +125,14 @@ function migrate(database) {
     CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
     CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
   `);
+
+  // Migrations soft (SQLite)
+  const cols = database.prepare('PRAGMA table_info(products)').all().map((c) => c.name);
+  if (!cols.includes('delivery_content')) {
+    database.exec(
+      `ALTER TABLE products ADD COLUMN delivery_content TEXT NOT NULL DEFAULT ''`,
+    );
+  }
 }
 
 function getSetting(key, fallback = null) {

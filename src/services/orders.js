@@ -227,15 +227,37 @@ function deliverOrder(orderId) {
       }
 
       if (item.delivery_type === 'auto' && item.product_id) {
-        const payloads = byProduct.get(item.product_id) || [];
-        let text;
-        if (payloads.length) {
-          text = payloads.join('\n');
-        } else {
-          text = `Livraison automatique confirmée pour ${item.product_name} x${item.quantity}`;
+        let payloads = byProduct.get(item.product_id) || [];
+
+        // Si pas de clés réservées (ex: stock quantity) mais des clés en stock → les prendre
+        if (payloads.length < item.quantity) {
+          const needed = item.quantity - payloads.length;
+          const taken = products.takeFreeKeys(item.product_id, needed, orderId);
+          payloads = payloads.concat(taken.map((k) => k.payload));
         }
-        updateItem.run(text, item.id);
-        deliveries.push({ item, payload: text });
+
+        let content = null;
+        if (payloads.length >= item.quantity) {
+          content = payloads.slice(0, item.quantity).join('\n');
+        } else if (payloads.length > 0) {
+          content = payloads.join('\n');
+        } else {
+          const product = products.getProduct(item.product_id);
+          const template = (product?.delivery_content || '').trim();
+          if (template) {
+            // Répète le contenu si quantité > 1
+            content = Array.from({ length: item.quantity }, () => template).join('\n');
+          }
+        }
+
+        if (!content) {
+          throw new Error(
+            `Aucun contenu à livrer pour « ${item.product_name} ». Ajoute des clés ou un contenu de livraison sur le produit.`,
+          );
+        }
+
+        updateItem.run(content, item.id);
+        deliveries.push({ item, payload: content });
       } else {
         allDone = false;
         deliveries.push({ item, payload: null, manual: true });

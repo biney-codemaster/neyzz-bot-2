@@ -47,20 +47,20 @@ function buildOrderChannelPanel(order, paymentInfo = null) {
 
   const components = [c];
 
-  if (paymentInfo) {
+  if (paymentInfo && ['pending', 'awaiting_payment'].includes(order.status)) {
+    const paymentLines = [
+      text(`# ${emoji(paymentInfo.method === 'paypal' ? 'paypal' : 'crypto')} ${paymentInfo.title}`),
+      text(paymentInfo.instructions),
+    ];
+    if (paymentInfo.address) {
+      paymentLines.push(text(`${emoji('copy')} Adresse : \`${paymentInfo.address}\``));
+    } else if (paymentInfo.link) {
+      paymentLines.push(text(`${emoji('link')} ${paymentInfo.link}`));
+    } else if (paymentInfo.email) {
+      paymentLines.push(text(`${emoji('paypal')} ${paymentInfo.email}`));
+    }
     components.push(
-      container(config.warnColor)
-        .addTextDisplayComponents(
-          text(`# ${emoji(paymentInfo.method === 'paypal' ? 'paypal' : 'crypto')} ${paymentInfo.title}`),
-          text(paymentInfo.instructions),
-          paymentInfo.address
-            ? text(`${emoji('copy')} Adresse : \`${paymentInfo.address}\``)
-            : text(
-                paymentInfo.link
-                  ? `${emoji('link')} ${paymentInfo.link}`
-                  : `${emoji('paypal')} ${paymentInfo.email || ''}`,
-              ),
-        ),
+      container(config.warnColor).addTextDisplayComponents(...paymentLines),
     );
   }
 
@@ -76,31 +76,46 @@ function buildOrderChannelPanel(order, paymentInfo = null) {
       btn(`order:review:${order.id}`, 'Laisser un avis', ButtonStyle.Primary, 'star'),
     );
   }
-
   if (customerBtns.length) components.push(row(...customerBtns));
 
   if (order.payment_method === 'crypto' && ['pending', 'awaiting_payment'].includes(order.status)) {
     components.push(
       container(config.accentColor).addTextDisplayComponents(
         text(
-          `${emoji('crypto')} Surveillance on-chain active — pas besoin d'attendre le staff si le montant est exact. Livraison en **MP** après confirmation réseau.`,
+          `${emoji('crypto')} Surveillance on-chain active — livraison en **MP** après confirmation réseau.`,
         ),
       ),
     );
   }
 
-  components.push(
-    container(config.accentColor).addTextDisplayComponents(
-      text(
-        `${emoji('staff')} **Zone staff** — secours manuel (PayPal / litiges / livraison manuelle)`,
-      ),
-    ),
-    row(
+  // Staff : boutons selon le statut (pas de spam / pas de doublon d'action)
+  const staffBtns = [];
+  if (['pending', 'awaiting_payment'].includes(order.status)) {
+    staffBtns.push(
       btn(`staff:confirm_pay:${order.id}`, 'Confirmer paiement', ButtonStyle.Success, 'money'),
+      btn(`staff:cancel:${order.id}`, 'Annuler', ButtonStyle.Danger, 'trash'),
+    );
+  } else if (['paid', 'partial'].includes(order.status)) {
+    staffBtns.push(
       btn(`staff:deliver:${order.id}`, 'Livrer (MP)', ButtonStyle.Primary, 'delivery'),
-      btn(`staff:cancel:${order.id}`, 'Annuler commande', ButtonStyle.Danger, 'trash'),
-    ),
-  );
+      btn(`staff:cancel:${order.id}`, 'Annuler', ButtonStyle.Danger, 'trash'),
+    );
+  }
+
+  if (staffBtns.length) {
+    components.push(
+      container(config.accentColor).addTextDisplayComponents(
+        text(`${emoji('staff')} **Zone staff**`),
+      ),
+      row(...staffBtns),
+    );
+  } else if (order.status === 'delivered') {
+    components.push(
+      container(config.successColor).addTextDisplayComponents(
+        text(`${emoji('check')} Commande livrée — plus d'action staff.`),
+      ),
+    );
+  }
 
   return { components, flags: V2 };
 }
@@ -117,7 +132,7 @@ function buildDeliveryMessage(order, deliveries) {
     .filter((d) => d.manual)
     .map(
       (d) =>
-        `${emoji('manual')} **${d.item.product_name}** × ${d.item.quantity} — livraison manuelle par le staff`,
+        `${emoji('manual')} **${d.item.product_name}** × ${d.item.quantity} — en attente de livraison manuelle`,
     );
 
   const c = container(config.successColor)
