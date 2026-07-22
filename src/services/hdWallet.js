@@ -1,13 +1,11 @@
 const bip39 = require('bip39');
-const { HDKey } = require('@scure/bip32');
+const HDKey = require('hdkey');
 const bitcoin = require('bitcoinjs-lib');
 const ecc = require('tiny-secp256k1');
-const { ECPairFactory } = require('ecpair');
 const { ethers } = require('ethers');
 const config = require('../config');
 
 bitcoin.initEccLib(ecc);
-const ECPair = ECPairFactory(ecc);
 
 const COIN_META = {
   btc: {
@@ -85,7 +83,7 @@ function deriveAddress(coinId, index) {
 
   if (coinId === 'btc' || coinId === 'ltc') {
     const payment = bitcoin.payments.p2wpkh({
-      pubkey: Buffer.from(node.publicKey),
+      pubkey: node.publicKey,
       network: meta.network,
     });
     return {
@@ -96,7 +94,7 @@ function deriveAddress(coinId, index) {
     };
   }
 
-  const wallet = new ethers.Wallet(Buffer.from(node.privateKey).toString('hex'));
+  const wallet = new ethers.Wallet(node.privateKey.toString('hex'));
   return {
     address: wallet.address,
     path,
