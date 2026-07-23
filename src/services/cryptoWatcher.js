@@ -31,7 +31,7 @@ async function fetchJson(url) {
 /**
  * API style mempool.space (BTC) / litecoinspace.org (LTC)
  */
-async function checkMempoolStyle(baseUrl, address) {
+async function checkMempoolStyle(baseUrl, address, { afterTs = null } = {}) {
   const data = await fetchJson(`${baseUrl}/address/${address}`);
   const funded =
     (data.chain_stats?.funded_txo_sum || 0) + (data.mempool_stats?.funded_txo_sum || 0);
@@ -42,35 +42,53 @@ async function checkMempoolStyle(baseUrl, address) {
   let txid = null;
   let confirmations = 0;
   let pending = false;
+  let txTime = null;
 
   if (txCount > 0) {
     const txs = await fetchJson(`${baseUrl}/address/${address}/txs`);
-    const first = txs?.[0];
-    if (first) {
-      txid = first.txid;
-      if (first.status?.confirmed && first.status.block_height) {
-        try {
-          const tip = await fetchJson(`${baseUrl}/blocks/tip/height`);
-          confirmations = Math.max(1, Number(tip) - Number(first.status.block_height) + 1);
-        } catch {
-          confirmations = 1;
-        }
-      } else {
-        confirmations = 0;
-        pending = true;
+    // Ne garde que les TX postérieures à l'assignation de l'adresse (anti faux positif)
+    const minTs = afterTs ? Math.floor(afterTs / 1000) - 60 : null;
+    const fresh = (txs || []).filter((t) => {
+      if (minTs == null) return true;
+      const tTime = t.status?.block_time || t.status?.block_time === 0
+        ? t.status.block_time
+        : null;
+      // mempool (non confirmée) = considérée fraîche
+      if (!t.status?.confirmed) return true;
+      if (tTime == null) return true;
+      return tTime >= minTs;
+    });
+
+    const first = fresh[0];
+    if (!first) {
+      // Historique ancien seulement → pas un paiement pour CETTE commande
+      return { received: 0, txid: null, confirmations: 0, pending: false, staleHistory: true };
+    }
+
+    txid = first.txid;
+    txTime = first.status?.block_time || null;
+    if (first.status?.confirmed && first.status.block_height) {
+      try {
+        const tip = await fetchJson(`${baseUrl}/blocks/tip/height`);
+        confirmations = Math.max(1, Number(tip) - Number(first.status.block_height) + 1);
+      } catch {
+        confirmations = 1;
       }
+    } else {
+      confirmations = 0;
+      pending = true;
     }
   }
 
-  return { received, txid, confirmations, pending };
+  return { received, txid, confirmations, pending, txTime };
 }
 
-async function checkBtc(address) {
-  return checkMempoolStyle('https://mempool.space/api', address);
+async function checkBtc(address, opts) {
+  return checkMempoolStyle('https://mempool.space/api', address, opts);
 }
 
-async function checkLtc(address) {
-  return checkMempoolStyle('https://litecoinspace.org/api', address);
+async function checkLtc(address, opts) {
+  return checkMempoolStyle('https://litecoinspace.org/api', address, opts);
 }
 
 async function getEthProvider() {
@@ -134,12 +152,21 @@ async function checkUsdt(address) {
   return { received, txid, confirmations, pending: false };
 }
 
+function assignedAtMs(row) {
+  if (!row.assigned_at) return null;
+  const s = String(row.assigned_at);
+  const d = new Date(s.includes('T') || s.endsWith('Z') ? s : `${s.replace(' ', 'T')}Z`);
+  const t = d.getTime();
+  return Number.isNaN(t) ? null : t;
+}
+
 async function checkAddress(row) {
+  const opts = { afterTs: assignedAtMs(row) };
   switch (row.coin) {
     case 'btc':
-      return checkBtc(row.address);
+      return checkBtc(row.address, opts);
     case 'ltc':
-      return checkLtc(row.address);
+      return checkLtc(row.address, opts);
     case 'eth':
       return checkEth(row.address);
     case 'usdt':

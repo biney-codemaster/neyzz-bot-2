@@ -81,7 +81,7 @@ async function prepareCryptoPayment(order, cryptoId) {
   }
 
   const quote = await prices.eurToCryptoAmount(coin, order.total);
-  const row = paymentAddresses.allocateAddressForOrder({
+  const row = await paymentAddresses.allocateAddressForOrder({
     orderId: order.id,
     coin,
     expectedAmount: quote.amountStr,

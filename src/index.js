@@ -87,7 +87,12 @@ client.once(Events.ClientReady, async (c) => {
   }
 
   if (isHdConfigured()) {
-    console.log(`${emoji('crypto')} HD wallet prêt`);
+    console.log(`${emoji('crypto')} HD wallet prêt (BIP44 / Exodus)`);
+    try {
+      await paymentAddresses.syncCountersPastUsedAddresses({ maxScan: 40 });
+    } catch (e) {
+      console.warn(`${emoji('warn')} Sync adresses HD:`, e.message);
+    }
     startCryptoWatcher(client);
   } else {
     console.warn(

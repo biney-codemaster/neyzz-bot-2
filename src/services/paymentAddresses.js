@@ -28,15 +28,44 @@ function ensureSchema() {
       FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS burned_addresses (
+      address TEXT PRIMARY KEY,
+      coin TEXT NOT NULL,
+      address_index INTEGER NOT NULL,
+      derivation_path TEXT,
+      reason TEXT NOT NULL DEFAULT 'used',
+      burned_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_payment_addresses_watch
       ON payment_addresses(status) WHERE status IN ('assigned', 'seen', 'pending');
   `);
 }
 
 function counterKey(coin) {
-  // ETH et USDT partagent la même branche d'adresses EVM → un seul compteur
   if (coin === 'eth' || coin === 'usdt') return 'evm';
   return coin;
+}
+
+function getCounter(coin) {
+  const key = counterKey(coin);
+  getDb()
+    .prepare(
+      `INSERT INTO hd_counters (coin, next_index) VALUES (?, 0)
+       ON CONFLICT(coin) DO NOTHING`,
+    )
+    .run(key);
+  return getDb().prepare('SELECT next_index FROM hd_counters WHERE coin = ?').get(key).next_index;
+}
+
+function setCounter(coin, index) {
+  const key = counterKey(coin);
+  getDb()
+    .prepare(
+      `INSERT INTO hd_counters (coin, next_index) VALUES (?, ?)
+       ON CONFLICT(coin) DO UPDATE SET next_index = excluded.next_index`,
+    )
+    .run(key, index);
 }
 
 function nextIndex(coin) {
@@ -55,11 +84,137 @@ function nextIndex(coin) {
   return tx();
 }
 
+function burnAddress({ address, coin, addressIndex, path, reason }) {
+  getDb()
+    .prepare(
+      `INSERT INTO burned_addresses (address, coin, address_index, derivation_path, reason)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(address) DO NOTHING`,
+    )
+    .run(address, coin, addressIndex, path || null, reason || 'used');
+}
+
+function isBurned(address) {
+  return Boolean(
+    getDb()
+      .prepare('SELECT 1 FROM burned_addresses WHERE lower(address) = lower(?)')
+      .get(address),
+  );
+}
+
+function isInDb(address) {
+  return Boolean(
+    getDb()
+      .prepare('SELECT 1 FROM payment_addresses WHERE lower(address) = lower(?)')
+      .get(address),
+  );
+}
+
+async function fetchJson(url) {
+  const res = await fetch(url, {
+    headers: { accept: 'application/json', 'user-agent': 'neyzz-shop-bot' },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 /**
- * Alloue une adresse HD fraîche pour une commande.
- * Une adresse assignée n'est JAMAIS réutilisée (même si commande annulée).
+ * true si l'adresse a déjà reçu des fonds / a un historique on-chain.
  */
-function allocateAddressForOrder({ orderId, coin, expectedAmount, expectedAmountEur }) {
+async function hasOnChainActivity(coin, address) {
+  try {
+    if (coin === 'btc') {
+      const data = await fetchJson(`https://mempool.space/api/address/${address}`);
+      const txs =
+        (data.chain_stats?.tx_count || 0) + (data.mempool_stats?.tx_count || 0);
+      const funded =
+        (data.chain_stats?.funded_txo_sum || 0) + (data.mempool_stats?.funded_txo_sum || 0);
+      return txs > 0 || funded > 0;
+    }
+    if (coin === 'ltc') {
+      const data = await fetchJson(`https://litecoinspace.org/api/address/${address}`);
+      const txs =
+        (data.chain_stats?.tx_count || 0) + (data.mempool_stats?.tx_count || 0);
+      const funded =
+        (data.chain_stats?.funded_txo_sum || 0) + (data.mempool_stats?.funded_txo_sum || 0);
+      return txs > 0 || funded > 0;
+    }
+    if (coin === 'eth' || coin === 'usdt') {
+      const { ethers } = require('ethers');
+      const config = require('../config');
+      const provider = new ethers.JsonRpcProvider(config.crypto.ethRpcUrl);
+      const [balance, nonce] = await Promise.all([
+        provider.getBalance(address),
+        provider.getTransactionCount(address),
+      ]);
+      if (nonce > 0 || balance > 0n) return true;
+      if (coin === 'usdt') {
+        const abi = ['function balanceOf(address) view returns (uint256)'];
+        const contract = new ethers.Contract(config.crypto.usdtContract, abi, provider);
+        const tokenBal = await contract.balanceOf(address);
+        return tokenBal > 0n;
+      }
+      return false;
+    }
+  } catch (e) {
+    console.warn(`[hd] on-chain check fail ${coin} ${address}:`, e.message);
+    // En cas d'erreur API, on ne bloque pas — mais on préfère skip si douteux
+    return false;
+  }
+  return false;
+}
+
+/**
+ * Au démarrage : avance le compteur tant que les adresses ont déjà un historique.
+ */
+async function syncCountersPastUsedAddresses({ maxScan = 30 } = {}) {
+  ensureSchema();
+  if (!isHdConfigured()) return;
+
+  for (const coin of enabledCoins().map((c) => c.id)) {
+    // eth/usdt share counter — sync once via eth
+    if (coin === 'usdt') continue;
+
+    let index = getCounter(coin);
+    let scanned = 0;
+    while (scanned < maxScan) {
+      const derived = deriveAddress(coin === 'eth' ? 'eth' : coin, index);
+      if (isBurned(derived.address) || isInDb(derived.address)) {
+        burnAddress({
+          address: derived.address,
+          coin: derived.coinId,
+          addressIndex: derived.index,
+          path: derived.path,
+          reason: 'db-or-burned',
+        });
+        index += 1;
+        scanned += 1;
+        continue;
+      }
+      const used = await hasOnChainActivity(derived.coinId, derived.address);
+      if (!used) break;
+      console.log(
+        `[hd] skip adresse déjà utilisée on-chain ${derived.coinId} #${derived.index} ${derived.address}`,
+      );
+      burnAddress({
+        address: derived.address,
+        coin: derived.coinId,
+        addressIndex: derived.index,
+        path: derived.path,
+        reason: 'on-chain-history',
+      });
+      index += 1;
+      scanned += 1;
+    }
+    setCounter(coin, index);
+    console.log(`[hd] ${coin} prochain index propre: #${index}`);
+  }
+}
+
+/**
+ * Alloue une adresse HD fraîche (jamais DB, jamais brûlée, jamais d'historique on-chain).
+ */
+async function allocateAddressForOrder({ orderId, coin, expectedAmount, expectedAmountEur }) {
   ensureSchema();
   if (!isHdConfigured()) throw new Error('HD wallet non configuré (CRYPTO_MNEMONIC)');
   if (!COIN_META[coin]) throw new Error(`Coin non supporté: ${coin}`);
@@ -69,16 +224,28 @@ function allocateAddressForOrder({ orderId, coin, expectedAmount, expectedAmount
     .get(orderId);
   if (existing) return existing;
 
-  // Essaie quelques index au cas où collision théorique
-  for (let attempt = 0; attempt < 5; attempt++) {
+  for (let attempt = 0; attempt < 40; attempt++) {
     const index = nextIndex(coin);
     const derived = deriveAddress(coin, index);
 
-    // Sécurité: si l'adresse existe déjà en DB, on saute (ne jamais réutiliser)
-    const taken = getDb()
-      .prepare('SELECT id FROM payment_addresses WHERE lower(address) = lower(?)')
-      .get(derived.address);
-    if (taken) continue;
+    if (isBurned(derived.address) || isInDb(derived.address)) {
+      continue;
+    }
+
+    const dirty = await hasOnChainActivity(coin, derived.address);
+    if (dirty) {
+      console.log(
+        `[hd] adresse sale ignorée ${coin} #${index} ${derived.address}`,
+      );
+      burnAddress({
+        address: derived.address,
+        coin,
+        addressIndex: index,
+        path: derived.path,
+        reason: 'on-chain-history',
+      });
+      continue;
+    }
 
     try {
       getDb()
@@ -97,13 +264,30 @@ function allocateAddressForOrder({ orderId, coin, expectedAmount, expectedAmount
           String(expectedAmount),
           expectedAmountEur,
         );
+      // Brûle aussi dans la table burned pour ne jamais réutiliser après wipe partiel
+      burnAddress({
+        address: derived.address,
+        coin,
+        addressIndex: derived.index,
+        path: derived.path,
+        reason: 'assigned',
+      });
       return getAddressByOrder(orderId);
     } catch (e) {
-      if (String(e.message).includes('UNIQUE')) continue;
+      if (String(e.message).includes('UNIQUE')) {
+        burnAddress({
+          address: derived.address,
+          coin,
+          addressIndex: index,
+          path: derived.path,
+          reason: 'unique-conflict',
+        });
+        continue;
+      }
       throw e;
     }
   }
-  throw new Error('Impossible d\'allouer une adresse unique');
+  throw new Error('Impossible d\'allouer une adresse unique propre (trop d\'adresses sales)');
 }
 
 function getAddressByOrder(orderId) {
@@ -120,8 +304,9 @@ function listWatchable() {
       `SELECT pa.*
        FROM payment_addresses pa
        JOIN orders o ON o.id = pa.order_id
-       WHERE pa.status IN ('assigned', 'seen', 'pending', 'confirmed')
+       WHERE pa.status IN ('assigned', 'seen', 'pending')
          AND o.status NOT IN ('delivered', 'cancelled')
+         AND o.closed_at IS NULL
        ORDER BY pa.id ASC`,
     )
     .all();
@@ -156,7 +341,6 @@ function markConfirmed(id, { receivedAmount, txid, confirmations }) {
 }
 
 function markAddressConsumedOnCancel(orderId) {
-  // L'adresse reste "brûlée" : on la passe en expired, jamais réassignée
   getDb()
     .prepare(
       `UPDATE payment_addresses
@@ -171,7 +355,8 @@ function stats() {
   const coins = enabledCoins().map((c) => c.id);
   const out = {};
   for (const coin of coins) {
-    const counter = getDb().prepare('SELECT next_index FROM hd_counters WHERE coin = ?').get(coin);
+    const key = counterKey(coin);
+    const counter = getDb().prepare('SELECT next_index FROM hd_counters WHERE coin = ?').get(key);
     const used = getDb()
       .prepare('SELECT COUNT(*) AS c FROM payment_addresses WHERE coin = ?')
       .get(coin);
@@ -191,5 +376,7 @@ module.exports = {
   markSeen,
   markConfirmed,
   markAddressConsumedOnCancel,
+  syncCountersPastUsedAddresses,
+  hasOnChainActivity,
   stats,
 };
