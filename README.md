@@ -14,10 +14,12 @@ npm start
 
 Au démarrage, `index.js` :
 1. connecte le bot
-2. **enregistre tout seul** les commandes `/boutique` `/panier` `/admin`
+2. **enregistre tout seul** les commandes `/panier` `/admin`
 3. démarre le watcher crypto si la seed HD est configurée
 
 Plus besoin de `deploy-commands`.
+
+La boutique se poste via `/admin` → **Poster la boutique** (panel permanent).
 
 ### Pterodactyl
 

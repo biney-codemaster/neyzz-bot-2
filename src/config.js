@@ -36,10 +36,6 @@ const config = {
   paypal: {
     email: process.env.PAYPAL_EMAIL || '',
     meUsername: process.env.PAYPAL_ME_USERNAME || '',
-    webhookId: process.env.PAYPAL_WEBHOOK_ID || '',
-    clientId: process.env.PAYPAL_CLIENT_ID || '',
-    clientSecret: process.env.PAYPAL_CLIENT_SECRET || '',
-    mode: process.env.PAYPAL_MODE || 'sandbox',
   },
 
   crypto: {

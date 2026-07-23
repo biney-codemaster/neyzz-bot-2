@@ -64,7 +64,7 @@ function buildPaypalPayment(order) {
       '2. Choisis **Amis et famille** si demandé (ou suis les consignes du staff)',
       `3. Mets la référence **${order.public_id}** dans le message`,
       '4. Clique sur **J\'ai payé** dans ce salon',
-      '5. Un staff confirmera ensuite (PayPal n\'est pas auto on-chain)',
+      '5. Un staff confirmera ensuite le paiement (PayPal manuel)',
     ].join('\n'),
   };
 }

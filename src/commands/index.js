@@ -1,5 +1,4 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const { buildShopPanel } = require('../ui/shop');
 const { buildCartPanel } = require('../ui/cart');
 const { buildAdminHome } = require('../ui/admin');
 const cart = require('../services/cart');
@@ -9,17 +8,6 @@ const { emoji } = require('../emoji');
 const config = require('../config');
 
 module.exports = [
-  {
-    data: new SlashCommandBuilder()
-      .setName('boutique')
-      .setDescription('Affiche la boutique'),
-    async execute(interaction) {
-      await interaction.reply({
-        ...buildShopPanel(),
-        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-      });
-    },
-  },
   {
     data: new SlashCommandBuilder()
       .setName('panier')
