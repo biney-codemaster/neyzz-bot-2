@@ -361,7 +361,7 @@ async function processPaymentRow(client, row) {
       await sendOrderContainers(client, freshOrder, [
         container(config.dangerColor).addTextDisplayComponents(
           text(
-            `# ${emoji('warn')} Livraison échouée\n\`${e.message}\`\nUn staff peut utiliser **Livrer (MP)**.`,
+            `# ${emoji('warn')} Livraison échouée\n\`${e.message}\`\nUn admin peut utiliser **Livrer (MP)**.`,
           ),
         ),
         ...buildOrderChannelPanel(orders.getOrder(freshOrder.id), null).components,

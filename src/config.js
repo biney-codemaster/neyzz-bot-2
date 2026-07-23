@@ -22,7 +22,6 @@ const config = {
   guildId: process.env.DISCORD_GUILD_ID || '',
 
   adminRoleIds: splitIds(process.env.ADMIN_ROLE_IDS),
-  staffRoleIds: splitIds(process.env.STAFF_ROLE_IDS || process.env.ADMIN_ROLE_IDS),
 
   shopCategoryId: process.env.SHOP_CATEGORY_ID || null,
   ordersCategoryId: process.env.ORDERS_CATEGORY_ID || null,

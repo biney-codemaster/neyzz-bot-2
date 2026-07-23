@@ -34,7 +34,7 @@ async function createOrderChannel(guild, user, order) {
     },
   ];
 
-  for (const roleId of [...new Set([...config.staffRoleIds, ...config.adminRoleIds])]) {
+  for (const roleId of [...new Set(config.adminRoleIds)]) {
     overwrites.push({
       id: roleId,
       allow: [

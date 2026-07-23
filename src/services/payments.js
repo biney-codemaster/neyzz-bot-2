@@ -61,10 +61,10 @@ function buildPaypalPayment(order) {
       link
         ? `1. Ouvre ce lien : ${link}`
         : `1. Envoie **${amount} ${config.currencySymbol}** à \`${email}\` via PayPal`,
-      '2. Choisis **Amis et famille** si demandé (ou suis les consignes du staff)',
+      '2. Choisis **Amis et famille** si demandé (ou suis les consignes de la boutique)',
       `3. Mets la référence **${order.public_id}** dans le message`,
       '4. Clique sur **J\'ai payé** dans ce salon',
-      '5. Un staff confirmera ensuite le paiement (PayPal manuel)',
+      '5. Un admin confirmera ensuite le paiement (PayPal manuel)',
     ].join('\n'),
   };
 }

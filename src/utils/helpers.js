@@ -11,12 +11,6 @@ function isAdmin(member) {
   return config.adminRoleIds.some((id) => member.roles.cache.has(id));
 }
 
-function isStaff(member) {
-  if (!member) return false;
-  if (isAdmin(member)) return true;
-  return config.staffRoleIds.some((id) => member.roles.cache.has(id));
-}
-
 function truncate(str, max = 100) {
   const s = String(str || '');
   if (s.length <= max) return s;
@@ -32,7 +26,6 @@ function parseQuantity(value, fallback = 1) {
 module.exports = {
   money,
   isAdmin,
-  isStaff,
   truncate,
   parseQuantity,
 };

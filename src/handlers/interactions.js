@@ -4,7 +4,7 @@ const orders = require('../services/orders');
 const reviews = require('../services/reviews');
 const { setSetting, getSetting, getSettingsPrefix } = require('../db/database');
 const { setCustomEmoji, loadCustomEmojis } = require('../emoji');
-const { isAdmin, isStaff, parseQuantity } = require('../utils/helpers');
+const { isAdmin, parseQuantity } = require('../utils/helpers');
 const { createOrderChannel, refreshOrderPanel, logShop } = require('../services/channels');
 const { deliverToUser } = require('../services/delivery');
 const { closeOrderWithTranscript } = require('../services/transcript');
@@ -190,12 +190,12 @@ async function handleButton(interaction) {
       `${emoji('pending')} <@${interaction.user.id}> signale un paiement pour **${order.public_id}** (${order.payment_method}).`,
     );
     await interaction.reply(
-      notice(`${emoji('check')} Signalement envoyé. Un staff va vérifier ton paiement.`),
+      notice(`${emoji('check')} Signalement envoyé. Un admin va vérifier ton paiement.`),
     );
     await interaction.channel.send({
       components: [
         container(config.warnColor).addTextDisplayComponents(
-          text(`${emoji('staff')} <@${interaction.user.id}> a cliqué sur **J'ai payé** pour \`${order.public_id}\`.`),
+          text(`${emoji('admin')} <@${interaction.user.id}> a cliqué sur **J'ai payé** pour \`${order.public_id}\`.`),
         ),
       ],
       flags: V2,
@@ -208,7 +208,7 @@ async function handleButton(interaction) {
     const order = orders.getOrder(orderId);
     if (!order) return interaction.reply(notice('Commande introuvable.', config.dangerColor));
     const allowed =
-      order.user_id === interaction.user.id || isStaff(interaction.member);
+      order.user_id === interaction.user.id || isAdmin(interaction.member);
     if (!allowed) {
       return interaction.reply(notice('Tu ne peux pas fermer cette commande.', config.dangerColor));
     }
@@ -279,10 +279,10 @@ async function handleButton(interaction) {
     return interaction.showModal(modals.reviewModal(orderId));
   }
 
-  // Staff
+  // Actions commande (admin)
   if (id.startsWith('staff:')) {
-    if (!isStaff(interaction.member)) {
-      return interaction.reply(notice('Réservé au staff.', config.dangerColor));
+    if (!isAdmin(interaction.member)) {
+      return interaction.reply(notice('Réservé aux admins.', config.dangerColor));
     }
     const [, action, orderIdRaw] = id.split(':');
     const orderId = Number(orderIdRaw);
@@ -348,7 +348,7 @@ async function handleButton(interaction) {
 
     if (action === 'cancel') {
       try {
-        orders.cancelOrder(orderId, `Annulée par staff ${interaction.user.tag}`);
+        orders.cancelOrder(orderId, `Annulée par admin ${interaction.user.tag}`);
         await bumpShop(interaction.client);
         await interaction.reply(notice('Commande annulée.'));
         await refreshOrderPanel(interaction.channel, orderId);
@@ -776,7 +776,7 @@ async function handleModal(interaction) {
   }
 
   if (id.startsWith('modal:manual_deliver:')) {
-    if (!isStaff(interaction.member)) return interaction.reply(notice('Nope.', config.dangerColor));
+    if (!isAdmin(interaction.member)) return interaction.reply(notice('Nope.', config.dangerColor));
     const orderId = Number(id.split(':')[2]);
     const payload = interaction.fields.getTextInputValue('payload').trim();
     let order = orders.getOrder(orderId);

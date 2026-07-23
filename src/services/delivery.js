@@ -7,7 +7,7 @@ const config = require('../config');
 /**
  * Livre toujours en DM au client.
  * - auto: envoie les clés / payload
- * - manual restant: prévient que le staff va livrer + notifie le salon
+ * - manual restant: prévient que l'admin va livrer + notifie le salon
  */
 async function deliverToUser(client, orderId) {
   let order = orders.getOrder(orderId);

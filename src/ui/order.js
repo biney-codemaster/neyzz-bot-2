@@ -95,30 +95,30 @@ function buildOrderChannelPanel(order, paymentInfo = null) {
     );
   }
 
-  // Staff
-  const staffBtns = [];
+  // Admin
+  const adminBtns = [];
   if (['pending', 'awaiting_payment'].includes(order.status)) {
     if (!isCrypto) {
-      staffBtns.push(
+      adminBtns.push(
         btn(`staff:confirm_pay:${order.id}`, 'Confirmer paiement', ButtonStyle.Success, 'money'),
       );
     }
-    staffBtns.push(
+    adminBtns.push(
       btn(`staff:cancel:${order.id}`, 'Annuler', ButtonStyle.Danger, 'trash'),
     );
   } else if (['paid', 'partial'].includes(order.status)) {
-    staffBtns.push(
+    adminBtns.push(
       btn(`staff:deliver:${order.id}`, 'Livrer (MP)', ButtonStyle.Primary, 'delivery'),
       btn(`staff:cancel:${order.id}`, 'Annuler', ButtonStyle.Danger, 'trash'),
     );
   }
 
-  if (staffBtns.length) {
+  if (adminBtns.length) {
     components.push(
       container(config.accentColor).addTextDisplayComponents(
-        text(`${emoji('staff')} **Zone staff**`),
+        text(`${emoji('admin')} **Zone admin**`),
       ),
-      row(...staffBtns.slice(0, 5)),
+      row(...adminBtns.slice(0, 5)),
     );
   }
 
