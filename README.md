@@ -14,7 +14,7 @@ npm start
 
 Au démarrage, `index.js` :
 1. connecte le bot
-2. **enregistre tout seul** les commandes `/panier` `/admin` `/giveaway` `/reroll`
+2. **enregistre tout seul** les commandes `/panier` `/admin` `/rename` `/giveaway` `/reroll`
 3. démarre le watcher crypto si la seed HD est configurée + scheduler giveaways
 
 Plus besoin de `deploy-commands`.
@@ -48,6 +48,7 @@ Startup : `npm install && npm start`
 |----------|------|
 | `/panier` | Panier |
 | `/admin` | Dashboard (+ Poster la boutique) |
+| `/rename` | Renommer un ticket de commande |
 | `/giveaway create\|list\|cancel\|extend` | Giveaways (admin) |
 | `/reroll` | Relancer un tirage terminé (admin) |
 
