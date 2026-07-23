@@ -91,17 +91,6 @@ function paypalModal(email = '', me = '') {
     );
 }
 
-function cryptoModal() {
-  // Legacy — LTC only via HD wallet, plus de config d'adresses statiques
-  return modal('modal:pay_crypto', 'Crypto LTC')
-    .addComponents(
-      input('info', 'Info', {
-        required: false,
-        value: 'Configure CRYPTO_MNEMONIC dans .env (Litecoin uniquement).',
-      }),
-    );
-}
-
 function emojiModal() {
   return modal('modal:emoji_set', 'Emoji custom')
     .addComponents(
