@@ -56,7 +56,8 @@ module.exports = [
   {
     data: new SlashCommandBuilder()
       .setName('rename')
-      .setDescription('Renomme le ticket de commande (à utiliser dans le salon)')
+      .setDescription('Renomme le ticket de commande (admin, dans le salon)')
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
       .addStringOption((o) =>
         o
           .setName('nom')
@@ -66,6 +67,12 @@ module.exports = [
           .setMaxLength(100),
       ),
     async execute(interaction) {
+      if (!isAdmin(interaction.member)) {
+        return interaction.reply(
+          notice(`${emoji('cross')} Accès refusé — admin uniquement.`, config.dangerColor),
+        );
+      }
+
       const order = orders.getOrderByChannel(interaction.channelId);
       if (!order) {
         return interaction.reply(
@@ -73,14 +80,6 @@ module.exports = [
             `${emoji('cross')} Cette commande ne fonctionne que dans un ticket de commande.`,
             config.dangerColor,
           ),
-        );
-      }
-
-      const allowed =
-        isAdmin(interaction.member) || order.user_id === interaction.user.id;
-      if (!allowed) {
-        return interaction.reply(
-          notice(`${emoji('cross')} Accès refusé.`, config.dangerColor),
         );
       }
 
