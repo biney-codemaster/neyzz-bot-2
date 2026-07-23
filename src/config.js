@@ -58,7 +58,7 @@ const config = {
     /** Tolérance sous-paiement (ex: 0.02 = 2%) */
     amountTolerance: Number(process.env.CRYPTO_AMOUNT_TOLERANCE || 0.02),
     /** Intervalle de scan blockchain (ms) */
-    watchIntervalMs: Number(process.env.CRYPTO_WATCH_INTERVAL_MS || 30000),
+    watchIntervalMs: Number(process.env.CRYPTO_WATCH_INTERVAL_MS || 15000),
     ethRpcUrl: process.env.ETH_RPC_URL || 'https://ethereum.publicnode.com',
     /** Contrat USDT ERC-20 */
     usdtContract: process.env.USDT_CONTRACT || '0xdAC17F958D2ee523a2206206994597C13D831ec7',

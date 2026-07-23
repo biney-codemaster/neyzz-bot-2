@@ -279,7 +279,6 @@ function buildPaymentsAdmin() {
       ),
       row(
         btn('admin:pay_paypal', 'Config PayPal', ButtonStyle.Primary, 'paypal'),
-        btn('admin:crypto_recover', 'Récupérer crypto', ButtonStyle.Danger, 'key'),
         btn('admin:home', 'Retour', ButtonStyle.Secondary, 'back'),
       ),
     ],
