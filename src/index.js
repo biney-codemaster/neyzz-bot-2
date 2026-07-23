@@ -159,11 +159,6 @@ app.get('/health', (_req, res) => {
   });
 });
 
-app.post('/webhooks/paypal', (req, res) => {
-  console.log('PayPal webhook reçu:', JSON.stringify(req.body).slice(0, 500));
-  res.sendStatus(200);
-});
-
 app.listen(config.httpPort, () => {
   console.log(`${emoji('link')} HTTP listening on :${config.httpPort}`);
 });

@@ -46,9 +46,8 @@ Startup : `npm install && npm start`
 
 | Commande | Rôle |
 |----------|------|
-| `/boutique` | Panel boutique |
 | `/panier` | Panier |
-| `/admin` | Dashboard |
+| `/admin` | Dashboard (+ Poster la boutique) |
 
 ## Variables importantes
 
