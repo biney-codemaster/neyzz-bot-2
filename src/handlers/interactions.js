@@ -9,6 +9,8 @@ const { createOrderChannel, refreshOrderPanel, logShop } = require('../services/
 const { deliverToUser } = require('../services/delivery');
 const { closeOrderWithTranscript } = require('../services/transcript');
 const shopPanels = require('../services/shopPanels');
+const giveaways = require('../services/giveaways');
+const giveawayRunner = require('../services/giveawayRunner');
 const { buildShopPanel, buildProductDetail } = require('../ui/shop');
 const { buildCartPanel, buildItemManagePanel, buildCryptoSelect } = require('../ui/cart');
 
@@ -75,6 +77,46 @@ async function safeUpdate(interaction, payload) {
 
 async function handleButton(interaction) {
   const id = interaction.customId;
+
+  if (id.startsWith('giveaway:join:') || id.startsWith('giveaway:leave:')) {
+    const giveawayId = Number(id.split(':')[2]);
+    const g = giveaways.getGiveaway(giveawayId);
+    if (!g || g.status !== 'running') {
+      return interaction.reply(
+        notice(`${emoji('cross')} Ce giveaway est terminé ou introuvable.`, config.dangerColor),
+      );
+    }
+
+    if (id.startsWith('giveaway:join:')) {
+      const member = interaction.member
+        || (await giveawayRunner.fetchMemberSafe(interaction.guild, interaction.user.id));
+      const check = giveawayRunner.checkEligibility(g, member);
+      if (!check.ok) {
+        return interaction.reply(notice(`${emoji('cross')} ${check.reason}`, config.dangerColor));
+      }
+      if (giveaways.hasEntry(g.id, interaction.user.id)) {
+        return interaction.reply(
+          notice(`${emoji('info')} Tu participes déjà. Utilise **Quitter** pour te retirer.`),
+        );
+      }
+      giveaways.join(g.id, interaction.user.id);
+      await giveawayRunner.refreshGiveawayMessage(interaction.client, g.id);
+      return interaction.reply(
+        notice(`${emoji('party')} Participation enregistrée !`, config.successColor),
+      );
+    }
+
+    if (!giveaways.hasEntry(g.id, interaction.user.id)) {
+      return interaction.reply(
+        notice(`${emoji('info')} Tu ne participes pas à ce giveaway.`),
+      );
+    }
+    giveaways.leave(g.id, interaction.user.id);
+    await giveawayRunner.refreshGiveawayMessage(interaction.client, g.id);
+    return interaction.reply(
+      notice(`${emoji('leave')} Tu as quitté le giveaway.`),
+    );
+  }
 
   if (id === 'shop:refresh') {
     // Ancien bouton — la boutique se rafraîchit seule maintenant

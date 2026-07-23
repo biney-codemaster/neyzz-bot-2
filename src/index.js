@@ -27,6 +27,7 @@ const { isHdConfigured } = require('./services/hdWallet');
 const paymentAddresses = require('./services/paymentAddresses');
 const shopPanels = require('./services/shopPanels');
 const { startCryptoWatcher } = require('./services/cryptoWatcher');
+const { startGiveawayScheduler } = require('./services/giveawayRunner');
 
 if (!config.token) {
   console.error('DISCORD_TOKEN manquant dans .env');
@@ -99,6 +100,8 @@ client.once(Events.ClientReady, async (c) => {
       `${emoji('warn')} CRYPTO_MNEMONIC absent/invalide — paiements crypto HD désactivés`,
     );
   }
+
+  startGiveawayScheduler(client);
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {

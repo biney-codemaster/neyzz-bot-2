@@ -6,6 +6,7 @@ const { isAdmin } = require('../utils/helpers');
 const { notice } = require('../handlers/interactions');
 const { emoji } = require('../emoji');
 const config = require('../config');
+const giveawayCommands = require('./giveaway');
 
 module.exports = [
   {
@@ -37,4 +38,5 @@ module.exports = [
       });
     },
   },
+  ...giveawayCommands,
 ];

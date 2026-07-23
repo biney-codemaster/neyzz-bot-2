@@ -49,6 +49,10 @@ const UNICODE = {
   channel: '📁',
   link: '🔗',
   copy: '📋',
+  gift: '🎁',
+  party: '🎉',
+  trophy: '🏆',
+  leave: '🚪',
 };
 
 /** Emojis valides pour setEmoji() Discord (boutons / menus) */
@@ -95,6 +99,10 @@ const COMPONENT = {
   channel: '📁',
   link: '🔗',
   copy: '📋',
+  gift: '🎁',
+  party: '🎉',
+  trophy: '🏆',
+  leave: '🚪',
 };
 
 /** @type {Record<string, string | { id: string, name: string, animated?: boolean }>} */

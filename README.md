@@ -14,8 +14,8 @@ npm start
 
 Au démarrage, `index.js` :
 1. connecte le bot
-2. **enregistre tout seul** les commandes `/panier` `/admin`
-3. démarre le watcher crypto si la seed HD est configurée
+2. **enregistre tout seul** les commandes `/panier` `/admin` `/giveaway` `/reroll`
+3. démarre le watcher crypto si la seed HD est configurée + scheduler giveaways
 
 Plus besoin de `deploy-commands`.
 
@@ -48,6 +48,16 @@ Startup : `npm install && npm start`
 |----------|------|
 | `/panier` | Panier |
 | `/admin` | Dashboard (+ Poster la boutique) |
+| `/giveaway create\|list\|cancel\|extend` | Giveaways (admin) |
+| `/reroll` | Relancer un tirage terminé (admin) |
+
+### Giveaways
+
+- Boutons **Participer** / **Quitter**
+- Conditions optionnelles : rôle, âge du compte, ancienneté serveur
+- Tirage auto à la fin (ignore les membres partis)
+- Annonce des gagnants dans un **nouveau message**
+- Lot = texte libre (pas lié à la boutique)
 
 ## Variables importantes
 

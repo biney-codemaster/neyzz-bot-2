@@ -120,6 +120,35 @@ function migrate(database) {
       FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS giveaways (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_id TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      message_id TEXT,
+      host_id TEXT NOT NULL,
+      prize TEXT NOT NULL,
+      winners_count INTEGER NOT NULL DEFAULT 1,
+      ends_at TEXT NOT NULL,
+      required_role_id TEXT,
+      min_account_days INTEGER NOT NULL DEFAULT 0,
+      min_server_days INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'running',
+      winners_json TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      ended_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS giveaway_entries (
+      giveaway_id INTEGER NOT NULL,
+      user_id TEXT NOT NULL,
+      joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (giveaway_id, user_id),
+      FOREIGN KEY(giveaway_id) REFERENCES giveaways(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_giveaways_status ON giveaways(status);
+    CREATE INDEX IF NOT EXISTS idx_giveaways_ends ON giveaways(ends_at);
+
     CREATE INDEX IF NOT EXISTS idx_product_keys_free
       ON product_keys(product_id) WHERE used_order_id IS NULL AND reserved_order_id IS NULL;
     CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
