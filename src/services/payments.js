@@ -14,33 +14,20 @@ function enabledPaymentMethods() {
   }
 
   if (getEnabledCryptos().length) {
-    methods.push({ id: 'crypto', label: 'Crypto', emojiKey: 'crypto' });
+    methods.push({ id: 'crypto', label: 'Litecoin (LTC)', emojiKey: 'ltc' });
   }
   return methods;
 }
 
 function getEnabledCryptos() {
-  // Mode HD wallet (recommandé)
-  if (isHdConfigured()) {
-    return enabledCoins().map((c) => ({
-      id: c.id,
-      label: c.label,
-      emojiKey: c.emojiKey,
-      hd: true,
-      address: null,
-    }));
-  }
-
-  // Fallback legacy: adresses statiques (déconseillé — pas de détection fiable multi-paiements)
-  const map = [
-    { id: 'btc', label: 'Bitcoin (BTC)', emojiKey: 'btc', setting: 'crypto_btc', env: '' },
-    { id: 'eth', label: 'Ethereum (ETH)', emojiKey: 'eth', setting: 'crypto_eth', env: '' },
-    { id: 'ltc', label: 'Litecoin (LTC)', emojiKey: 'ltc', setting: 'crypto_ltc', env: '' },
-    { id: 'usdt', label: 'USDT', emojiKey: 'usdt', setting: 'crypto_usdt', env: '' },
-  ];
-  return map
-    .map((c) => ({ ...c, address: getSetting(c.setting, '') || '', hd: false }))
-    .filter((c) => c.address);
+  if (!isHdConfigured()) return [];
+  return enabledCoins().map((c) => ({
+    id: c.id,
+    label: c.label,
+    emojiKey: c.emojiKey,
+    hd: true,
+    address: null,
+  }));
 }
 
 function buildPaypalPayment(order) {
@@ -73,8 +60,9 @@ function buildPaypalPayment(order) {
  * Prépare le paiement crypto: alloue une adresse HD unique + montant exact.
  */
 async function prepareCryptoPayment(order, cryptoId) {
-  const coin = cryptoId || order.crypto_currency;
-  if (!coin || !COIN_META[coin]) throw new Error('Crypto invalide');
+  const coin = 'ltc';
+  if (cryptoId && cryptoId !== 'ltc') throw new Error('Seul Litecoin (LTC) est supporté');
+  if (!COIN_META[coin]) throw new Error('Crypto invalide');
 
   if (!isHdConfigured()) {
     throw new Error('HD wallet non configuré — ajoute CRYPTO_MNEMONIC dans .env');

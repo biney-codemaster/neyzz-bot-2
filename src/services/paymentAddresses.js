@@ -43,8 +43,7 @@ function ensureSchema() {
 }
 
 function counterKey(coin) {
-  if (coin === 'eth' || coin === 'usdt') return 'evm';
-  return coin;
+  return coin === 'ltc' ? 'ltc' : coin;
 }
 
 function getCounter(coin) {
@@ -123,45 +122,17 @@ async function fetchJson(url) {
  */
 async function hasOnChainActivity(coin, address) {
   try {
-    if (coin === 'btc') {
-      const data = await fetchJson(`https://mempool.space/api/address/${address}`);
-      const txs =
-        (data.chain_stats?.tx_count || 0) + (data.mempool_stats?.tx_count || 0);
-      const funded =
-        (data.chain_stats?.funded_txo_sum || 0) + (data.mempool_stats?.funded_txo_sum || 0);
-      return txs > 0 || funded > 0;
-    }
-    if (coin === 'ltc') {
-      const data = await fetchJson(`https://litecoinspace.org/api/address/${address}`);
-      const txs =
-        (data.chain_stats?.tx_count || 0) + (data.mempool_stats?.tx_count || 0);
-      const funded =
-        (data.chain_stats?.funded_txo_sum || 0) + (data.mempool_stats?.funded_txo_sum || 0);
-      return txs > 0 || funded > 0;
-    }
-    if (coin === 'eth' || coin === 'usdt') {
-      const { ethers } = require('ethers');
-      const config = require('../config');
-      const provider = new ethers.JsonRpcProvider(config.crypto.ethRpcUrl);
-      const [balance, nonce] = await Promise.all([
-        provider.getBalance(address),
-        provider.getTransactionCount(address),
-      ]);
-      if (nonce > 0 || balance > 0n) return true;
-      if (coin === 'usdt') {
-        const abi = ['function balanceOf(address) view returns (uint256)'];
-        const contract = new ethers.Contract(config.crypto.usdtContract, abi, provider);
-        const tokenBal = await contract.balanceOf(address);
-        return tokenBal > 0n;
-      }
-      return false;
-    }
+    if (coin !== 'ltc') return false;
+    const data = await fetchJson(`https://litecoinspace.org/api/address/${address}`);
+    const txs =
+      (data.chain_stats?.tx_count || 0) + (data.mempool_stats?.tx_count || 0);
+    const funded =
+      (data.chain_stats?.funded_txo_sum || 0) + (data.mempool_stats?.funded_txo_sum || 0);
+    return txs > 0 || funded > 0;
   } catch (e) {
     console.warn(`[hd] on-chain check fail ${coin} ${address}:`, e.message);
-    // En cas d'erreur API, on ne bloque pas — mais on préfère skip si douteux
     return false;
   }
-  return false;
 }
 
 /**
@@ -172,13 +143,10 @@ async function syncCountersPastUsedAddresses({ maxScan = 30 } = {}) {
   if (!isHdConfigured()) return;
 
   for (const coin of enabledCoins().map((c) => c.id)) {
-    // eth/usdt share counter — sync once via eth
-    if (coin === 'usdt') continue;
-
     let index = getCounter(coin);
     let scanned = 0;
     while (scanned < maxScan) {
-      const derived = deriveAddress(coin === 'eth' ? 'eth' : coin, index);
+      const derived = deriveAddress(coin, index);
       if (isBurned(derived.address) || isInDb(derived.address)) {
         burnAddress({
           address: derived.address,
@@ -217,6 +185,8 @@ async function syncCountersPastUsedAddresses({ maxScan = 30 } = {}) {
 async function allocateAddressForOrder({ orderId, coin, expectedAmount, expectedAmountEur }) {
   ensureSchema();
   if (!isHdConfigured()) throw new Error('HD wallet non configuré (CRYPTO_MNEMONIC)');
+  if (coin && coin !== 'ltc') throw new Error('Seul Litecoin (LTC) est supporté');
+  coin = 'ltc';
   if (!COIN_META[coin]) throw new Error(`Coin non supporté: ${coin}`);
 
   const existing = getDb()

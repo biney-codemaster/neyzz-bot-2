@@ -29,7 +29,7 @@ async function eurToCryptoAmount(coinId, eurAmount) {
   const raw = Number(eurAmount) / price;
 
   // Arrondi "safe" pour paiement: un peu de précision mais lisible
-  const decimals = coinId === 'usdt' ? 2 : Math.min(8, meta.decimals);
+  const decimals = Math.min(8, meta.decimals);
   const factor = 10 ** decimals;
   const amount = Math.ceil(raw * factor) / factor;
   return {

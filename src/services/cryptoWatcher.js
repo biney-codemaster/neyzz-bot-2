@@ -1,4 +1,3 @@
-const { ethers } = require('ethers');
 const config = require('../config');
 const paymentAddresses = require('./paymentAddresses');
 const orders = require('./orders');
@@ -7,11 +6,6 @@ const { logShop } = require('./channels');
 const { emoji } = require('../emoji');
 const { container, text, V2 } = require('../ui/v2');
 const { buildOrderChannelPanel } = require('../ui/order');
-
-const ERC20_ABI = [
-  'function balanceOf(address) view returns (uint256)',
-  'function decimals() view returns (uint8)',
-];
 
 function enoughAmount(expected, received, tolerance = config.crypto.amountTolerance) {
   const exp = Number(expected);
@@ -29,7 +23,7 @@ async function fetchJson(url) {
 }
 
 /**
- * API style mempool.space (BTC) / litecoinspace.org (LTC)
+ * API litecoinspace.org (LTC)
  */
 async function checkMempoolStyle(baseUrl, address, { afterTs = null } = {}) {
   const data = await fetchJson(`${baseUrl}/address/${address}`);
@@ -83,73 +77,8 @@ async function checkMempoolStyle(baseUrl, address, { afterTs = null } = {}) {
   return { received, txid, confirmations, pending, txTime };
 }
 
-async function checkBtc(address, opts) {
-  return checkMempoolStyle('https://mempool.space/api', address, opts);
-}
-
 async function checkLtc(address, opts) {
   return checkMempoolStyle('https://litecoinspace.org/api', address, opts);
-}
-
-async function getEthProvider() {
-  return new ethers.JsonRpcProvider(config.crypto.ethRpcUrl);
-}
-
-async function checkEth(address) {
-  const provider = await getEthProvider();
-  const balanceWei = await provider.getBalance(address);
-  const received = Number(ethers.formatEther(balanceWei));
-  let txid = null;
-  let confirmations = 0;
-  if (received > 0) {
-    try {
-      const data = await fetchJson(
-        `https://eth.blockscout.com/api/v2/addresses/${address}/transactions?filter=to`,
-      );
-      const first = data?.items?.[0];
-      if (first) {
-        txid = first.hash;
-        confirmations = first.result === 'success' ? Math.max(1, first.confirmations || 1) : 0;
-      } else {
-        confirmations = 1;
-      }
-    } catch {
-      confirmations = 1;
-    }
-  }
-  return {
-    received,
-    txid,
-    confirmations,
-    pending: received > 0 && confirmations === 0,
-  };
-}
-
-async function checkUsdt(address) {
-  const provider = await getEthProvider();
-  const contract = new ethers.Contract(config.crypto.usdtContract, ERC20_ABI, provider);
-  const raw = await contract.balanceOf(address);
-  const decimals = await contract.decimals().catch(() => 6);
-  const received = Number(ethers.formatUnits(raw, decimals));
-  let txid = null;
-  let confirmations = 0;
-  if (received > 0) {
-    try {
-      const data = await fetchJson(
-        `https://eth.blockscout.com/api/v2/addresses/${address}/token-transfers?type=ERC-20&filter=to`,
-      );
-      const first = data?.items?.[0];
-      if (first) {
-        txid = first.transaction_hash || first.tx_hash || null;
-        confirmations = 1;
-      } else {
-        confirmations = 1;
-      }
-    } catch {
-      confirmations = 1;
-    }
-  }
-  return { received, txid, confirmations, pending: false };
 }
 
 function assignedAtMs(row) {
@@ -161,26 +90,15 @@ function assignedAtMs(row) {
 }
 
 async function checkAddress(row) {
-  const opts = { afterTs: assignedAtMs(row) };
-  switch (row.coin) {
-    case 'btc':
-      return checkBtc(row.address, opts);
-    case 'ltc':
-      return checkLtc(row.address, opts);
-    case 'eth':
-      return checkEth(row.address);
-    case 'usdt':
-      return checkUsdt(row.address);
-    default:
-      return { received: 0, txid: null, confirmations: 0, pending: false };
+  if (row.coin !== 'ltc') {
+    return { received: 0, txid: null, confirmations: 0, pending: false };
   }
+  return checkLtc(row.address, { afterTs: assignedAtMs(row) });
 }
 
 function explorerTxUrl(coin, txid) {
   if (!txid) return null;
-  if (coin === 'btc') return `https://mempool.space/tx/${txid}`;
-  if (coin === 'ltc') return `https://litecoinspace.org/tx/${txid}`;
-  return `https://etherscan.io/tx/${txid}`;
+  return `https://litecoinspace.org/tx/${txid}`;
 }
 
 async function sendOrderContainers(client, order, components) {

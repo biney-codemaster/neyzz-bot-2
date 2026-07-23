@@ -252,15 +252,13 @@ function buildPaymentsAdmin() {
           ([coin, s]) => `• ${coin.toUpperCase()} — prochain index **#${s.nextIndex}** (${s.addressesUsed} adresses utilisées)`,
         ),
         '',
-        '_Chemins BIP44 (Exodus) : LTC = adresses `L…`, BTC = `1…`, ETH/USDT = `0x…`_',
-        '_Chaque paiement = 1 adresse neuve → visible dans ton Exodus (même seed)._',
+        '_Chemin BIP44 Exodus LTC : `m/44\'/2\'/0\'/0` → adresses `L…`_',
+        '_Chaque paiement = 1 adresse LTC neuve → visible dans ton Exodus (même seed)._',
       ]
     : [
         `${emoji('warn')} HD Wallet **non configuré**`,
         'Ajoute `CRYPTO_MNEMONIC` dans ton `.env` puis relance le bot.',
-        cryptos.length
-          ? `Fallback adresses statiques: ${cryptos.map((c) => c.label).join(', ')}`
-          : 'Aucune crypto active.',
+        'Crypto supportée : **Litecoin (LTC)** uniquement.',
       ];
 
   return {

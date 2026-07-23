@@ -25,20 +25,20 @@ La boutique se poste via `/admin` → **Poster la boutique** (panel permanent).
 
 Startup : `npm install && npm start`
 
-## Crypto (Exodus)
+## Crypto (Exodus — Litecoin uniquement)
 
 1. Mets ta **seed Exodus** dans `CRYPTO_MNEMONIC`
-2. Chaque commande génère une adresse neuve (BIP44, comme Exodus)
-3. Le client paie → détection auto → livraison en MP
+2. Chaque commande génère une adresse LTC neuve (BIP44 `m/44'/2'/0'/0`)
+3. Le client paie en LTC → détection auto → livraison en MP
 4. Les fonds apparaissent dans **ton Exodus** (même seed)
 
 **Ne partage jamais la mnemonic.**
 
 ## Flow acheteur
 
-1. Boutique → panier → PayPal ou Crypto  
+1. Boutique → panier → PayPal ou Litecoin (LTC)  
 2. Salon commande + instructions de paiement  
-3. Crypto : adresse HD unique + montant exact  
+3. LTC : adresse HD unique + montant exact  
 4. Détection auto → livraison **MP**  
 5. Fermer → transcript HTML (MP + logs)  
 
@@ -64,5 +64,4 @@ Startup : `npm install && npm start`
 
 Voir `.env.example` — surtout :
 - `DISCORD_TOKEN` / `DISCORD_CLIENT_ID` / `DISCORD_GUILD_ID`
-- `CRYPTO_MNEMONIC`
-- `CRYPTO_ENABLED_COINS=btc,eth,ltc,usdt`
+- `CRYPTO_MNEMONIC` (Litecoin uniquement)

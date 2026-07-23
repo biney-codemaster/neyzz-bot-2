@@ -3,27 +3,15 @@ const HDKey = require('hdkey');
 const bitcoin = require('bitcoinjs-lib');
 const ecc = require('tiny-secp256k1');
 const wif = require('wif');
-const { ethers } = require('ethers');
 const config = require('../config');
 
 bitcoin.initEccLib(ecc);
 
 /**
- * Chemins compatibles Exodus (BIP44).
- * LTC → adresses L…  |  BTC → adresses 1…  |  ETH/USDT → 0x…
+ * Litecoin uniquement — chemin BIP44 Exodus : m/44'/2'/0'/0 → adresses L…
  * Mets ta seed Exodus dans CRYPTO_MNEMONIC → les paiements apparaissent dans Exodus.
  */
 const COIN_META = {
-  btc: {
-    id: 'btc',
-    label: 'Bitcoin (BTC)',
-    emojiKey: 'btc',
-    decimals: 8,
-    coingecko: 'bitcoin',
-    pathPrefix: "m/44'/0'/0'/0",
-    script: 'p2pkh',
-    network: bitcoin.networks.bitcoin,
-  },
   ltc: {
     id: 'ltc',
     label: 'Litecoin (LTC)',
@@ -40,22 +28,6 @@ const COIN_META = {
       scriptHash: 0x32,
       wif: 0xb0,
     },
-  },
-  eth: {
-    id: 'eth',
-    label: 'Ethereum (ETH)',
-    emojiKey: 'eth',
-    decimals: 18,
-    coingecko: 'ethereum',
-    pathPrefix: "m/44'/60'/0'/0",
-  },
-  usdt: {
-    id: 'usdt',
-    label: 'USDT (ERC-20)',
-    emojiKey: 'usdt',
-    decimals: 6,
-    coingecko: 'tether',
-    pathPrefix: "m/44'/60'/0'/0",
   },
 };
 
@@ -83,7 +55,7 @@ function resetRootCache() {
 
 function deriveNode(coinId, index) {
   const meta = COIN_META[coinId];
-  if (!meta) throw new Error(`Coin inconnu: ${coinId}`);
+  if (!meta) throw new Error(`Coin inconnu: ${coinId} (seul LTC est supporté)`);
   const path = `${meta.pathPrefix}/${index}`;
   const node = getRoot().derive(path);
   if (!node.privateKey) throw new Error(`Impossible de dériver ${path}`);
@@ -91,59 +63,42 @@ function deriveNode(coinId, index) {
 }
 
 function deriveAddress(coinId, index) {
-  const { node, path, meta } = deriveNode(coinId, index);
+  const id = coinId === 'ltc' ? 'ltc' : coinId;
+  const { node, path, meta } = deriveNode(id, index);
 
-  if (coinId === 'btc' || coinId === 'ltc') {
-    const payment =
-      meta.script === 'p2wpkh'
-        ? bitcoin.payments.p2wpkh({ pubkey: node.publicKey, network: meta.network })
-        : bitcoin.payments.p2pkh({ pubkey: node.publicKey, network: meta.network });
-    return {
-      address: payment.address,
-      path,
-      index,
-      coinId,
-    };
-  }
+  const payment =
+    meta.script === 'p2wpkh'
+      ? bitcoin.payments.p2wpkh({ pubkey: node.publicKey, network: meta.network })
+      : bitcoin.payments.p2pkh({ pubkey: node.publicKey, network: meta.network });
 
-  const wallet = new ethers.Wallet(node.privateKey.toString('hex'));
   return {
-    address: wallet.address,
+    address: payment.address,
     path,
     index,
-    coinId,
+    coinId: 'ltc',
   };
 }
 
 function exportPrivateKey(coinId, index) {
-  const { node, path, meta } = deriveNode(coinId, index);
-  const derived = deriveAddress(coinId, index);
-
-  if (coinId === 'btc' || coinId === 'ltc') {
-    const encoded = wif.encode({
-      version: meta.network.wif,
-      privateKey: Buffer.from(node.privateKey),
-      compressed: true,
-    });
-    return {
-      ...derived,
-      wif: encoded,
-      privateKeyHex: node.privateKey.toString('hex'),
-    };
-  }
-
+  const { node, path, meta } = deriveNode(coinId === 'ltc' ? 'ltc' : coinId, index);
+  const derived = deriveAddress('ltc', index);
+  const encoded = wif.encode({
+    version: meta.network.wif,
+    privateKey: Buffer.from(node.privateKey),
+    compressed: true,
+  });
   return {
     ...derived,
-    privateKeyHex: `0x${node.privateKey.toString('hex')}`,
-    wif: null,
+    wif: encoded,
+    privateKeyHex: node.privateKey.toString('hex'),
   };
 }
 
 function enabledCoins() {
   if (!isHdConfigured()) return [];
-  return config.crypto.enabledCoins
-    .filter((id) => COIN_META[id])
-    .map((id) => ({ ...COIN_META[id] }));
+  // Force LTC uniquement, même si .env liste d'autres coins
+  if (!config.crypto.enabledCoins.includes('ltc')) return [];
+  return [{ ...COIN_META.ltc }];
 }
 
 function generateMnemonic() {
@@ -153,7 +108,7 @@ function generateMnemonic() {
 function verifyPaymentAddress(row) {
   if (!row) return { ok: false, error: 'Adresse introuvable' };
   try {
-    const derived = deriveAddress(row.coin, row.address_index);
+    const derived = deriveAddress('ltc', row.address_index);
     const match = derived.address.toLowerCase() === String(row.address).toLowerCase();
     return {
       ok: match,

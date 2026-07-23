@@ -12,7 +12,7 @@ const shopPanels = require('../services/shopPanels');
 const giveaways = require('../services/giveaways');
 const giveawayRunner = require('../services/giveawayRunner');
 const { buildShopPanel, buildProductDetail } = require('../ui/shop');
-const { buildCartPanel, buildItemManagePanel, buildCryptoSelect } = require('../ui/cart');
+const { buildCartPanel, buildItemManagePanel } = require('../ui/cart');
 
 async function bumpShop(client) {
   try {
@@ -409,9 +409,6 @@ async function handleAdminButton(interaction) {
       ),
     );
   }
-  if (id === 'admin:pay_crypto') {
-    return interaction.showModal(modals.cryptoModal());
-  }
   if (id === 'admin:crypto_recover') {
     return interaction.showModal(modals.recoverCryptoModal());
   }
@@ -477,7 +474,25 @@ async function handleSelect(interaction) {
   if (id === 'cart:pay_method') {
     try {
       if (value === 'crypto') {
-        return interaction.reply(buildCryptoSelect('pending'));
+        const cryptos = require('../services/payments').getEnabledCryptos();
+        if (!cryptos.length) {
+          return interaction.reply(
+            notice(`${emoji('warn')} Litecoin non configuré (CRYPTO_MNEMONIC).`, config.warnColor),
+          );
+        }
+        // LTC uniquement — pas de sélection multi-coins
+        const order = orders.createOrderFromCart(interaction.user, 'crypto', 'ltc');
+        const channel = await createOrderChannel(interaction.guild, interaction.user, order);
+        await bumpShop(interaction.client);
+        await logShop(
+          interaction.client,
+          `${emoji('invoice')} **${order.public_id}** LTC — <@${interaction.user.id}> — ${order.total.toFixed(2)}€`,
+        );
+        return interaction.reply(
+          notice(
+            `${emoji('check')} Commande **${order.public_id}** créée (LTC).\nSalon: ${channel}`,
+          ),
+        );
       }
 
       const order = orders.createOrderFromCart(interaction.user, value, null);
@@ -497,16 +512,16 @@ async function handleSelect(interaction) {
 
   if (id === 'checkout:crypto:pending' || id.startsWith('checkout:crypto:')) {
     try {
-      const order = orders.createOrderFromCart(interaction.user, 'crypto', value);
+      const order = orders.createOrderFromCart(interaction.user, 'crypto', 'ltc');
       const channel = await createOrderChannel(interaction.guild, interaction.user, order);
       await bumpShop(interaction.client);
       await logShop(
         interaction.client,
-        `${emoji('invoice')} **${order.public_id}** crypto=${value} — <@${interaction.user.id}> — ${order.total.toFixed(2)}€`,
+        `${emoji('invoice')} **${order.public_id}** LTC — <@${interaction.user.id}> — ${order.total.toFixed(2)}€`,
       );
       return interaction.reply(
         notice(
-          `${emoji('check')} Commande **${order.public_id}** créée (${value.toUpperCase()}).\nSalon: ${channel}`,
+          `${emoji('check')} Commande **${order.public_id}** créée (LTC).\nSalon: ${channel}`,
         ),
       );
     } catch (e) {
@@ -656,18 +671,6 @@ async function handleModal(interaction) {
     });
   }
 
-  if (id === 'modal:pay_crypto') {
-    if (!isAdmin(interaction.member)) return interaction.reply(notice('Nope.', config.dangerColor));
-    setSetting('crypto_btc', interaction.fields.getTextInputValue('btc').trim());
-    setSetting('crypto_eth', interaction.fields.getTextInputValue('eth').trim());
-    setSetting('crypto_ltc', interaction.fields.getTextInputValue('ltc').trim());
-    setSetting('crypto_usdt', interaction.fields.getTextInputValue('usdt').trim());
-    return interaction.reply({
-      ...buildPaymentsAdmin(),
-      flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-    });
-  }
-
   if (id === 'modal:crypto_recover') {
     if (!isAdmin(interaction.member)) return interaction.reply(notice('Nope.', config.dangerColor));
     const publicId = interaction.fields.getTextInputValue('public_id').trim().toUpperCase();
@@ -693,24 +696,19 @@ async function handleModal(interaction) {
       );
     }
     const key = hd.exportPrivateKey(row.coin, row.address_index);
-    const explorer =
-      row.coin === 'ltc'
-        ? `https://blockchair.com/litecoin/address/${row.address}`
-        : row.coin === 'btc'
-          ? `https://mempool.space/address/${row.address}`
-          : `https://etherscan.io/address/${row.address}`;
+    const explorer = `https://litecoinspace.org/address/${row.address}`;
 
     return interaction.reply({
       components: [
         container(config.warnColor).addTextDisplayComponents(
-          text(`# ${emoji('key')} Récupération ${row.coin.toUpperCase()} — ${order.public_id}`),
+          text(`# ${emoji('key')} Récupération LTC — ${order.public_id}`),
           text(
             [
               `${emoji('warn')} **Ne partage jamais cette clé.** Message éphémère — copie-la tout de suite.`,
               '',
               `Adresse : \`${row.address}\``,
               `Chemin : \`${row.derivation_path}\``,
-              `Montant attendu : \`${row.expected_amount}\` ${row.coin.toUpperCase()}`,
+              `Montant attendu : \`${row.expected_amount}\` LTC`,
               `Reçu : \`${row.received_amount || '—'}\` · statut \`${row.status}\``,
               `Explorer : ${explorer}`,
               '',

@@ -92,25 +92,12 @@ function paypalModal(email = '', me = '') {
 }
 
 function cryptoModal() {
-  const { getSetting } = require('../db/database');
-  const config = require('../config');
-  return modal('modal:pay_crypto', 'Config Crypto')
+  // Legacy — LTC only via HD wallet, plus de config d'adresses statiques
+  return modal('modal:pay_crypto', 'Crypto LTC')
     .addComponents(
-      input('btc', 'Adresse BTC', {
+      input('info', 'Info', {
         required: false,
-        value: getSetting('crypto_btc', config.crypto.btc) || undefined,
-      }),
-      input('eth', 'Adresse ETH', {
-        required: false,
-        value: getSetting('crypto_eth', config.crypto.eth) || undefined,
-      }),
-      input('ltc', 'Adresse LTC', {
-        required: false,
-        value: getSetting('crypto_ltc', config.crypto.ltc) || undefined,
-      }),
-      input('usdt', 'Adresse USDT', {
-        required: false,
-        value: getSetting('crypto_usdt', config.crypto.usdt) || undefined,
+        value: 'Configure CRYPTO_MNEMONIC dans .env (Litecoin uniquement).',
       }),
     );
 }
@@ -163,7 +150,6 @@ module.exports = {
   couponCreateModal,
   couponCartModal,
   paypalModal,
-  cryptoModal,
   emojiModal,
   reviewModal,
   manualDeliveryModal,
