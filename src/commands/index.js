@@ -3,6 +3,7 @@ const { buildCartPanel } = require('../ui/cart');
 const { buildAdminHome } = require('../ui/admin');
 const cart = require('../services/cart');
 const orders = require('../services/orders');
+const { renewOrderChannel } = require('../services/channels');
 const { isAdmin } = require('../utils/helpers');
 const { notice } = require('../handlers/interactions');
 const { emoji } = require('../emoji');
@@ -112,6 +113,59 @@ module.exports = [
         return interaction.reply(
           notice(
             `${emoji('cross')} Impossible de renommer : ${e.message}`,
+            config.dangerColor,
+          ),
+        );
+      }
+    },
+  },
+  {
+    data: new SlashCommandBuilder()
+      .setName('renew')
+      .setDescription('Recrée le ticket de commande au même endroit (admin)')
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    async execute(interaction) {
+      if (!isAdmin(interaction.member)) {
+        return interaction.reply(
+          notice(`${emoji('cross')} Accès refusé — admin uniquement.`, config.dangerColor),
+        );
+      }
+
+      const order = orders.getOrderByChannel(interaction.channelId);
+      if (!order) {
+        return interaction.reply(
+          notice(
+            `${emoji('cross')} Cette commande ne fonctionne que dans un ticket de commande.`,
+            config.dangerColor,
+          ),
+        );
+      }
+
+      if (order.closed_at) {
+        return interaction.reply(
+          notice(`${emoji('cross')} Cette commande est déjà fermée.`, config.dangerColor),
+        );
+      }
+
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+      try {
+        const { newChannel, deleteOld } = await renewOrderChannel(
+          interaction.channel,
+          order,
+        );
+        await interaction.editReply(
+          notice(
+            `${emoji('refresh')} Ticket renouvelé : ${newChannel}`,
+            config.successColor,
+          ),
+        );
+        await deleteOld();
+        return null;
+      } catch (e) {
+        return interaction.editReply(
+          notice(
+            `${emoji('cross')} Impossible de renouveler : ${e.message}`,
             config.dangerColor,
           ),
         );
