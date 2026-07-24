@@ -110,44 +110,79 @@ async function createOrderChannel(guild, user, order) {
 }
 
 /**
- * Supprime le salon ticket et le recrée au même endroit (catégorie + position),
- * sans changer le statut de la commande ni réallouer l'adresse crypto.
+ * Recrée n'importe quel salon texte au même endroit
+ * (nom, catégorie, position, topic, permissions).
+ * Si c'est un ticket commande, met à jour le channel_id + reposte le panel.
  */
-async function renewOrderChannel(oldChannel, order) {
+async function renewChannel(oldChannel, { renewedByTag = 'admin' } = {}) {
+  if (!oldChannel?.guild) throw new Error('Salon invalide');
+  if (!oldChannel.isTextBased?.() || oldChannel.isDMBased?.()) {
+    throw new Error('Utilisable uniquement dans un salon texte du serveur.');
+  }
+  if (oldChannel.isThread?.()) {
+    throw new Error('Impossible de renouveler un fil (thread).');
+  }
+
   const guild = oldChannel.guild;
+  const reason = `Renew par ${renewedByTag}`;
   const name = oldChannel.name;
   const parentId = oldChannel.parentId;
   const position = oldChannel.position;
-  const topic =
-    oldChannel.topic || `Commande ${order.public_id} — ${order.user_id}`;
+  const topic = oldChannel.topic || undefined;
+  const nsfw = Boolean(oldChannel.nsfw);
+  const rateLimitPerUser = oldChannel.rateLimitPerUser || 0;
+  const type = oldChannel.type;
 
-  const newChannel = await guild.channels.create({
+  const permissionOverwrites = oldChannel.permissionOverwrites.cache.map((ow) => ({
+    id: ow.id,
+    allow: ow.allow.bitfield,
+    deny: ow.deny.bitfield,
+    type: ow.type,
+  }));
+
+  const createPayload = {
     name,
-    type: ChannelType.GuildText,
+    type,
     parent: parentId || undefined,
     topic,
-    permissionOverwrites: buildOrderOverwrites(guild, order.user_id),
-    reason: `Renew ${order.public_id}`,
-  });
+    nsfw,
+    rateLimitPerUser,
+    permissionOverwrites,
+    reason,
+  };
+
+  const newChannel = await guild.channels.create(createPayload);
 
   try {
     if (typeof position === 'number') {
-      await newChannel.setPosition(position, { reason: `Renew ${order.public_id}` });
+      await newChannel.setPosition(position, { reason });
     }
   } catch {
     /* position best-effort */
   }
 
-  orders.setOrderChannel(order.id, newChannel.id);
-  await postOrderPanel(newChannel, order.user_id, order, { created: false });
-
-  return { newChannel, deleteOld: async () => {
+  // Si salon lié à une commande boutique → garder le lien + panel
+  const order = orders.getOrderByChannel(oldChannel.id);
+  if (order && !order.closed_at) {
+    orders.setOrderChannel(order.id, newChannel.id);
     try {
-      await oldChannel.delete(`Renew ${order.public_id}`);
+      await postOrderPanel(newChannel, order.user_id, order, { created: false });
     } catch (e) {
-      console.warn('[renew] delete old channel:', e.message);
+      console.warn('[renew] order panel:', e.message);
     }
-  } };
+  }
+
+  return {
+    newChannel,
+    order,
+    deleteOld: async () => {
+      try {
+        await oldChannel.delete(reason);
+      } catch (e) {
+        console.warn('[renew] delete old channel:', e.message);
+      }
+    },
+  };
 }
 
 async function refreshOrderPanel(channel, orderId) {
@@ -184,7 +219,7 @@ async function logShop(client, message) {
 
 module.exports = {
   createOrderChannel,
-  renewOrderChannel,
+  renewChannel,
   refreshOrderPanel,
   logShop,
 };

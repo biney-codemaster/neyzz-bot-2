@@ -49,7 +49,7 @@ Startup : `npm install && npm start`
 | `/panier` | Panier |
 | `/admin` | Dashboard (+ Poster la boutique) |
 | `/rename` | Renommer un ticket de commande (admin) |
-| `/renew` | Recréer le ticket au même endroit (admin) |
+| `/renew` | Recréer le salon courant au même endroit (admin) |
 | `/giveaway create\|list\|cancel\|extend` | Giveaways (admin) |
 | `/reroll` | Relancer un tirage terminé (admin) |
 

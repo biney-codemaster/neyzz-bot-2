@@ -3,7 +3,7 @@ const { buildCartPanel } = require('../ui/cart');
 const { buildAdminHome } = require('../ui/admin');
 const cart = require('../services/cart');
 const orders = require('../services/orders');
-const { renewOrderChannel } = require('../services/channels');
+const { renewChannel } = require('../services/channels');
 const { isAdmin } = require('../utils/helpers');
 const { notice } = require('../handlers/interactions');
 const { emoji } = require('../emoji');
@@ -122,7 +122,7 @@ module.exports = [
   {
     data: new SlashCommandBuilder()
       .setName('renew')
-      .setDescription('Recrée le ticket de commande au même endroit (admin)')
+      .setDescription('Recrée ce salon au même endroit (admin)')
       .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     async execute(interaction) {
       if (!isAdmin(interaction.member)) {
@@ -131,32 +131,21 @@ module.exports = [
         );
       }
 
-      const order = orders.getOrderByChannel(interaction.channelId);
-      if (!order) {
+      if (!interaction.guild || !interaction.channel) {
         return interaction.reply(
-          notice(
-            `${emoji('cross')} Cette commande ne fonctionne que dans un ticket de commande.`,
-            config.dangerColor,
-          ),
-        );
-      }
-
-      if (order.closed_at) {
-        return interaction.reply(
-          notice(`${emoji('cross')} Cette commande est déjà fermée.`, config.dangerColor),
+          notice(`${emoji('cross')} Utilisable uniquement sur un serveur.`, config.dangerColor),
         );
       }
 
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       try {
-        const { newChannel, deleteOld } = await renewOrderChannel(
-          interaction.channel,
-          order,
-        );
+        const { newChannel, deleteOld } = await renewChannel(interaction.channel, {
+          renewedByTag: interaction.user.tag,
+        });
         await interaction.editReply(
           notice(
-            `${emoji('refresh')} Ticket renouvelé : ${newChannel}`,
+            `${emoji('refresh')} Salon renouvelé : ${newChannel}`,
             config.successColor,
           ),
         );
