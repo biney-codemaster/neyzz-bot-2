@@ -73,8 +73,8 @@ function getCart(userId) {
 
 function addToCart(userId, productId, quantity = 1) {
   const product = products.getProduct(productId);
-  if (!product || !product.active) throw new Error('Produit introuvable ou inactif');
-  if (!product.inStock) throw new Error('Produit en rupture de stock');
+  if (!product || !product.active) throw new Error('Product not found or inactive');
+  if (!product.inStock) throw new Error('Product out of stock');
 
   ensureCart(userId);
   const existing = getDb()
@@ -83,7 +83,7 @@ function addToCart(userId, productId, quantity = 1) {
 
   const nextQty = (existing?.quantity || 0) + quantity;
   if (product.stock_mode !== 'unlimited' && nextQty > product.available) {
-    throw new Error(`Stock insuffisant (dispo: ${product.available})`);
+    throw new Error(`Insufficient stock (available: ${product.available})`);
   }
 
   if (existing) {
@@ -104,9 +104,9 @@ function addToCart(userId, productId, quantity = 1) {
 function setItemQuantity(userId, productId, quantity) {
   if (quantity <= 0) return removeFromCart(userId, productId);
   const product = products.getProduct(productId);
-  if (!product) throw new Error('Produit introuvable');
+  if (!product) throw new Error('Product not found');
   if (product.stock_mode !== 'unlimited' && quantity > product.available) {
-    throw new Error(`Stock insuffisant (dispo: ${product.available})`);
+    throw new Error(`Insufficient stock (available: ${product.available})`);
   }
   ensureCart(userId);
   getDb()

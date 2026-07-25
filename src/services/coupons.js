@@ -52,18 +52,18 @@ function deleteCoupon(code) {
 function applyCoupon(code, subtotal) {
   const coupon = getCoupon(code);
   if (!coupon || !coupon.active) {
-    return { ok: false, error: 'Code promo invalide' };
+    return { ok: false, error: 'Invalid promo code' };
   }
   if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
-    return { ok: false, error: 'Code promo expiré' };
+    return { ok: false, error: 'Promo code expired' };
   }
   if (coupon.max_uses != null && coupon.used_count >= coupon.max_uses) {
-    return { ok: false, error: 'Code promo épuisé' };
+    return { ok: false, error: 'Promo code exhausted' };
   }
   if (subtotal < Number(coupon.min_amount || 0)) {
     return {
       ok: false,
-      error: `Montant minimum: ${Number(coupon.min_amount).toFixed(2)} €`,
+      error: `Minimum amount: ${Number(coupon.min_amount).toFixed(2)} €`,
     };
   }
 

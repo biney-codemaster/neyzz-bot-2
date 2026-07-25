@@ -55,7 +55,7 @@ function buildTranscriptHtml({ order, messages, closedBy }) {
       const author = m.author?.tag || m.author?.username || m.author?.id || 'Inconnu';
       const bot = m.author?.bot ? ' bot' : '';
       const content = escapeHtml(m.cleanContent || m.content || '').replace(/\n/g, '<br>')
-        || '<span class="muted"><em>(composants / pièce jointe)</em></span>';
+        || '<span class="muted"><em>(components / attachment)</em></span>';
       const attachments = [...(m.attachments?.values?.() || m.attachments || [])]
         .map((a) => `<div class="attach">📎 <a href="${escapeHtml(a.url)}">${escapeHtml(a.name || 'fichier')}</a></div>`)
         .join('');
@@ -189,48 +189,48 @@ function buildTranscriptHtml({ order, messages, closedBy }) {
   <div class="wrap">
     <header class="hero">
       <h1>${escapeHtml(config.shopName)}</h1>
-      <div class="sub">Transcript de commande</div>
+      <div class="sub">Order transcript</div>
       <span class="badge ok">${escapeHtml(order.public_id)} · ${escapeHtml(order.status)}</span>
       <div class="grid">
-        <div class="stat"><label>Client</label><strong>${escapeHtml(order.username)} <span class="muted">(${escapeHtml(order.user_id)})</span></strong></div>
-        <div class="stat"><label>Paiement</label><strong>${escapeHtml(order.payment_method || '—')}${order.crypto_currency ? ` / ${escapeHtml(String(order.crypto_currency).toUpperCase())}` : ''}</strong></div>
+        <div class="stat"><label>Customer</label><strong>${escapeHtml(order.username)} <span class="muted">(${escapeHtml(order.user_id)})</span></strong></div>
+        <div class="stat"><label>Payment</label><strong>${escapeHtml(order.payment_method || '—')}${order.crypto_currency ? ` / ${escapeHtml(String(order.crypto_currency).toUpperCase())}` : ''}</strong></div>
         <div class="stat"><label>Total</label><strong>${Number(order.total).toFixed(2)} ${escapeHtml(config.currencySymbol)}</strong></div>
-        <div class="stat"><label>Créée le</label><strong>${escapeHtml(formatDate(order.created_at))}</strong></div>
-        <div class="stat"><label>Payée le</label><strong>${escapeHtml(formatDate(order.paid_at))}</strong></div>
-        <div class="stat"><label>Livrée le</label><strong>${escapeHtml(formatDate(order.delivered_at))}</strong></div>
-        <div class="stat"><label>Fermée par</label><strong>${escapeHtml(closedBy || '—')}</strong></div>
+        <div class="stat"><label>Created</label><strong>${escapeHtml(formatDate(order.created_at))}</strong></div>
+        <div class="stat"><label>Paid</label><strong>${escapeHtml(formatDate(order.paid_at))}</strong></div>
+        <div class="stat"><label>Delivered</label><strong>${escapeHtml(formatDate(order.delivered_at))}</strong></div>
+        <div class="stat"><label>Closed by</label><strong>${escapeHtml(closedBy || '—')}</strong></div>
         ${payAddr ? `<div class="stat"><label>Adresse crypto</label><strong style="font-size:.8rem;word-break:break-all">${escapeHtml(payAddr.address)}</strong></div>` : ''}
       </div>
     </header>
 
     <section>
-      <h2>Articles</h2>
+      <h2>Items</h2>
       <table>
         <thead>
           <tr>
-            <th>Produit</th>
-            <th class="center">Qté</th>
-            <th class="right">Prix unit.</th>
-            <th class="right">Sous-total</th>
-            <th>Livré</th>
+            <th>Product</th>
+            <th class="center">Qty</th>
+            <th class="right">Unit price</th>
+            <th class="right">Subtotal</th>
+            <th>Delivered</th>
           </tr>
         </thead>
-        <tbody>${itemsHtml || '<tr><td colspan="5" class="muted">Aucun article</td></tr>'}</tbody>
+        <tbody>${itemsHtml || '<tr><td colspan="5" class="muted">No items</td></tr>'}</tbody>
       </table>
       <div class="totals">
-        <div>Sous-total : ${Number(order.subtotal).toFixed(2)} ${escapeHtml(config.currencySymbol)}</div>
-        ${order.discount > 0 ? `<div>Remise${order.coupon_code ? ` (${escapeHtml(order.coupon_code)})` : ''} : −${Number(order.discount).toFixed(2)} ${escapeHtml(config.currencySymbol)}</div>` : ''}
-        <div class="total">Total : ${Number(order.total).toFixed(2)} ${escapeHtml(config.currencySymbol)}</div>
+        <div>Subtotal: ${Number(order.subtotal).toFixed(2)} ${escapeHtml(config.currencySymbol)}</div>
+        ${order.discount > 0 ? `<div>Discount${order.coupon_code ? ` (${escapeHtml(order.coupon_code)})` : ''}: −${Number(order.discount).toFixed(2)} ${escapeHtml(config.currencySymbol)}</div>` : ''}
+        <div class="total">Total: ${Number(order.total).toFixed(2)} ${escapeHtml(config.currencySymbol)}</div>
       </div>
     </section>
 
     <section>
-      <h2>Messages du salon</h2>
-      ${messagesHtml || '<p class="muted">Aucun message.</p>'}
+      <h2>Channel messages</h2>
+      ${messagesHtml || '<p class="muted">No messages.</p>'}
     </section>
 
     <footer>
-      Généré automatiquement par ${escapeHtml(config.shopName)} · ${escapeHtml(formatDate(new Date().toISOString()))}
+      Auto-generated by ${escapeHtml(config.shopName)} · ${escapeHtml(formatDate(new Date().toISOString()))}
     </footer>
   </div>
 </body>
@@ -259,8 +259,8 @@ async function fetchChannelMessages(channel, limit = 200) {
  */
 async function closeOrderWithTranscript(client, { orderId, closedByUser, channel }) {
   const order = orders.getOrder(orderId);
-  if (!order) throw new Error('Commande introuvable');
-  if (order.closed_at) throw new Error('Commande déjà fermée');
+  if (!order) throw new Error('Order not found');
+  if (order.closed_at) throw new Error('Order already closed');
 
   const ch = channel || (order.channel_id ? await client.channels.fetch(order.channel_id).catch(() => null) : null);
   const messages = ch ? await fetchChannelMessages(ch) : [];
@@ -276,17 +276,17 @@ async function closeOrderWithTranscript(client, { orderId, closedByUser, channel
 
   const summary = [
     `📋 **Transcript ${order.public_id}**`,
-    `Client : <@${order.user_id}> (\`${order.username}\`)`,
-    `Statut : \`${order.status}\` · ${Number(order.total).toFixed(2)} ${config.currencySymbol}`,
-    `Paiement : ${order.payment_method || '—'}${order.crypto_currency ? ` (${String(order.crypto_currency).toUpperCase()})` : ''}`,
-    `Fermée par : ${closedByUser}`,
+    `Customer: <@${order.user_id}> (\`${order.username}\`)`,
+    `Status: \`${order.status}\` · ${Number(order.total).toFixed(2)} ${config.currencySymbol}`,
+    `Payment: ${order.payment_method || '—'}${order.crypto_currency ? ` (${String(order.crypto_currency).toUpperCase()})` : ''}`,
+    `Closed by: ${closedByUser}`,
   ].join('\n');
 
   // DM client
   try {
     const user = await client.users.fetch(order.user_id);
     await user.send({
-      content: `${summary}\n\nVoici le transcript HTML de ta commande.`,
+      content: `${summary}\n\nHere is the HTML transcript for your order.`,
       files: [attachment],
     });
   } catch (e) {
@@ -312,7 +312,7 @@ async function closeOrderWithTranscript(client, { orderId, closedByUser, channel
 
   if (ch) {
     setTimeout(() => {
-      ch.delete('Commande fermée — transcript envoyé').catch(() => {});
+      ch.delete('Order closed — transcript sent').catch(() => {});
     }, 2500);
   }
 

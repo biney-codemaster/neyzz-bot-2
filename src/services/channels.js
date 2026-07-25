@@ -77,11 +77,11 @@ async function postOrderPanel(channel, userId, order, { created = false } = {}) 
         text(
           [
             created
-              ? `${emoji('box')} <@${userId}> — commande créée.`
-              : `${emoji('refresh')} <@${userId}> — ticket renouvelé.`,
+              ? `${emoji('box')} <@${userId}> — order created.`
+              : `${emoji('refresh')} <@${userId}> — ticket renewed.`,
             isCrypto
-              ? `${emoji('crypto')} Paie à l'adresse ci-dessous — détection **auto**, livraison en **MP**.`
-              : `${emoji('delivery')} Après confirmation du paiement, la livraison partira en **MP**.`,
+              ? `${emoji('crypto')} Pay to the address below — **auto** detection, delivery by **DM**.`
+              : `${emoji('delivery')} After payment is confirmed, delivery will be sent by **DM**.`,
           ].join('\n'),
         ),
       ),
@@ -98,9 +98,9 @@ async function createOrderChannel(guild, user, order) {
     name: `cmd-${order.public_id.replace('CMD-', '').toLowerCase()}`,
     type: ChannelType.GuildText,
     parent: config.ordersCategoryId || undefined,
-    topic: `Commande ${order.public_id} — ${user.id}`,
+    topic: `Order ${order.public_id} — ${user.id}`,
     permissionOverwrites: buildOrderOverwrites(guild, user.id),
-    reason: `Commande ${order.public_id}`,
+    reason: `Order ${order.public_id}`,
   });
 
   orders.setOrderChannel(order.id, channel.id);
@@ -115,12 +115,12 @@ async function createOrderChannel(guild, user, order) {
  * Si c'est un ticket commande, met à jour le channel_id + reposte le panel.
  */
 async function renewChannel(oldChannel, { renewedByTag = 'admin' } = {}) {
-  if (!oldChannel?.guild) throw new Error('Salon invalide');
+  if (!oldChannel?.guild) throw new Error('Invalid channel');
   if (!oldChannel.isTextBased?.() || oldChannel.isDMBased?.()) {
-    throw new Error('Utilisable uniquement dans un salon texte du serveur.');
+    throw new Error('Only usable in a server text channel.');
   }
   if (oldChannel.isThread?.()) {
-    throw new Error('Impossible de renouveler un fil (thread).');
+    throw new Error('Cannot renew a thread.');
   }
 
   const guild = oldChannel.guild;

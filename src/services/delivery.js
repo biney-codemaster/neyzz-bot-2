@@ -5,20 +5,20 @@ const { emoji } = require('../emoji');
 const config = require('../config');
 
 /**
- * Livre toujours en DM au client.
- * - auto: envoie les clés / payload
- * - manual restant: prévient que l'admin va livrer + notifie le salon
+ * Always delivers by DM to the customer.
+ * - auto: sends keys / payload
+ * - remaining manual: notifies that an admin will deliver + notifies the channel
  */
 async function deliverToUser(client, orderId) {
   let order = orders.getOrder(orderId);
-  if (!order) throw new Error('Commande introuvable');
+  if (!order) throw new Error('Order not found');
 
   if (order.status === 'delivered') {
     return { order, deliveries: [], allDone: true, already: true };
   }
 
   if (['pending', 'awaiting_payment'].includes(order.status)) {
-    throw new Error('Commande non payée');
+    throw new Error('Order is not paid');
   }
 
   const result = orders.deliverOrder(orderId);
@@ -36,7 +36,7 @@ async function deliverToUser(client, orderId) {
         components: [
           container(config.warnColor).addTextDisplayComponents(
             text(
-              `${emoji('warn')} Impossible d'envoyer en MP (<@${order.user_id}> ouvre tes MPs). Livraison ici :`,
+              `${emoji('warn')} Could not DM <@${order.user_id}> (please open your DMs). Delivery here:`,
             ),
           ),
           ...dmPayload.components,
@@ -44,7 +44,7 @@ async function deliverToUser(client, orderId) {
         flags: V2,
       });
     } else {
-      throw new Error(`DM fermés pour ${order.user_id}: ${e.message}`);
+      throw new Error(`DMs closed for ${order.user_id}: ${e.message}`);
     }
   }
 

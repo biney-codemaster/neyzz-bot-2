@@ -58,7 +58,7 @@ for (const cmd of commands) {
 async function registerSlashCommands() {
   if (!config.clientId) {
     console.warn(
-      `${emoji('warn')} DISCORD_CLIENT_ID manquant — les commandes / ne seront pas enregistrées.`,
+      `${emoji('warn')} DISCORD_CLIENT_ID missing — slash commands will not be registered.`,
     );
     return;
   }
@@ -69,35 +69,35 @@ async function registerSlashCommands() {
   if (config.guildId) {
     await rest.put(Routes.applicationGuildCommands(config.clientId, config.guildId), { body });
     console.log(
-      `${emoji('check')} Commandes / enregistrées sur le serveur ${config.guildId} (${body.length})`,
+      `${emoji('check')} Slash commands registered on guild ${config.guildId} (${body.length})`,
     );
   } else {
     await rest.put(Routes.applicationCommands(config.clientId), { body });
-    console.log(`${emoji('check')} Commandes / enregistrées globalement (${body.length})`);
+    console.log(`${emoji('check')} Slash commands registered globally (${body.length})`);
   }
 }
 
 client.once(Events.ClientReady, async (c) => {
-  console.log(`${emoji('check')} Connecté en tant que ${c.user.tag}`);
-  console.log(`${emoji('shop')} Boutique: ${config.shopName}`);
+  console.log(`${emoji('check')} Logged in as ${c.user.tag}`);
+  console.log(`${emoji('shop')} Shop: ${config.shopName}`);
 
   try {
     await registerSlashCommands();
   } catch (e) {
-    console.error(`${emoji('cross')} Échec enregistrement des commandes /:`, e.message);
+    console.error(`${emoji('cross')} Failed to register slash commands:`, e.message);
   }
 
   if (isHdConfigured()) {
-    console.log(`${emoji('crypto')} HD wallet prêt (BIP44 / Exodus)`);
+    console.log(`${emoji('crypto')} HD wallet ready (BIP44 / Exodus)`);
     try {
       await paymentAddresses.syncCountersPastUsedAddresses({ maxScan: 40 });
     } catch (e) {
-      console.warn(`${emoji('warn')} Sync adresses HD:`, e.message);
+      console.warn(`${emoji('warn')} HD address sync:`, e.message);
     }
     startCryptoWatcher(client);
   } else {
     console.warn(
-      `${emoji('warn')} CRYPTO_MNEMONIC absent/invalide — paiements crypto HD désactivés`,
+      `${emoji('warn')} CRYPTO_MNEMONIC missing/invalid — HD crypto payments disabled`,
     );
   }
 
@@ -132,7 +132,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       components: [
         container(config.dangerColor).addTextDisplayComponents(
           text(
-            `${emoji('cross')} Une erreur est survenue.\n\`\`\`${String(error.message || error).slice(0, 500)}\`\`\``,
+            `${emoji('cross')} Something went wrong.\n\`\`\`${String(error.message || error).slice(0, 500)}\`\`\``,
           ),
         ),
       ],

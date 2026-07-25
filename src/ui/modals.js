@@ -73,9 +73,9 @@ function couponCreateModal() {
 }
 
 function couponCartModal() {
-  return modal('modal:cart_coupon', 'Code promo')
+  return modal('modal:cart_coupon', 'Promo code')
     .addComponents(
-      input('code', 'Code promo', { placeholder: 'WELCOME10', required: false }),
+      input('code', 'Promo code', { placeholder: 'WELCOME10', required: false }),
     );
 }
 
@@ -102,23 +102,23 @@ function emojiModal() {
 }
 
 function reviewModal(orderId) {
-  return modal(`modal:review:${orderId}`, 'Laisser un avis')
+  return modal(`modal:review:${orderId}`, 'Leave a review')
     .addComponents(
-      input('rating', 'Note /5 (1 à 5)', { placeholder: '5', value: '5' }),
-      input('comment', 'Commentaire', {
+      input('rating', 'Rating /5 (1 to 5)', { placeholder: '5', value: '5' }),
+      input('comment', 'Comment', {
         style: TextInputStyle.Paragraph,
         required: false,
-        placeholder: 'Service rapide, top !',
+        placeholder: 'Fast service, great!',
       }),
     );
 }
 
 function manualDeliveryModal(orderId) {
-  return modal(`modal:manual_deliver:${orderId}`, 'Livraison manuelle')
+  return modal(`modal:manual_deliver:${orderId}`, 'Manual delivery')
     .addComponents(
-      input('payload', 'Contenu à envoyer au client', {
+      input('payload', 'Content to send to the customer', {
         style: TextInputStyle.Paragraph,
-        placeholder: 'Compte: user\nMdp: pass',
+        placeholder: 'Account: user\nPassword: pass',
       }),
     );
 }

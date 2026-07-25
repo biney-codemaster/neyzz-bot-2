@@ -116,18 +116,18 @@ function buildDetectedContainer(order, row, result, neededConf) {
   const url = explorerTxUrl(row.coin, result.txid);
   return container(config.warnColor)
     .addTextDisplayComponents(
-      text(`# ${emoji('pending')} Paiement détecté`),
+      text(`# ${emoji('pending')} Payment detected`),
       text(
         [
-          `Commande **${order.public_id}**`,
+          `Order **${order.public_id}**`,
           `${emoji('crypto')} **${row.coin.toUpperCase()}**`,
-          `Montant reçu : \`${result.received}\` / attendu \`${row.expected_amount}\``,
+          `Amount received: \`${result.received}\` / expected \`${row.expected_amount}\``,
           `TXID : \`${result.txid || '—'}\``,
           url ? `${emoji('link')} ${url}` : null,
           `Confirmations : **${result.confirmations}/${neededConf}**`,
           result.pending
-            ? `${emoji('clock')} En mempool — en attente de confirmation réseau…`
-            : `${emoji('clock')} En cours de confirmation…`,
+            ? `${emoji('clock')} In mempool — waiting for network confirmation…`
+            : `${emoji('clock')} Confirming…`,
         ]
           .filter(Boolean)
           .join('\n'),
@@ -139,16 +139,16 @@ function buildConfirmedContainer(order, row, result) {
   const url = explorerTxUrl(row.coin, result.txid);
   return container(config.successColor)
     .addTextDisplayComponents(
-      text(`# ${emoji('check')} Paiement confirmé`),
+      text(`# ${emoji('check')} Payment confirmed`),
       text(
         [
-          `Commande **${order.public_id}**`,
-          `${emoji('crypto')} **${row.coin.toUpperCase()}** — \`${result.received}\` reçu`,
+          `Order **${order.public_id}**`,
+          `${emoji('crypto')} **${row.coin.toUpperCase()}** — \`${result.received}\` received`,
           `TXID : \`${result.txid || '—'}\``,
           url ? `${emoji('link')} ${url}` : null,
           `Confirmations : **${result.confirmations}**`,
           '',
-          `${emoji('delivery')} Livraison du produit en **MP**…`,
+          `${emoji('delivery')} Delivering product by **DM**…`,
         ]
           .filter(Boolean)
           .join('\n'),
@@ -186,12 +186,12 @@ async function processPaymentRow(client, row) {
       });
       await sendOrderContainers(client, order, [
         container(config.dangerColor).addTextDisplayComponents(
-          text(`# ${emoji('warn')} Paiement insuffisant`),
+          text(`# ${emoji('warn')} Insufficient payment`),
           text(
             [
-              `Commande **${order.public_id}**`,
-              `Reçu : \`${result.received}\` ${row.coin.toUpperCase()}`,
-              `Attendu : \`${row.expected_amount}\` ${row.coin.toUpperCase()}`,
+              `Order **${order.public_id}**`,
+              `Received: \`${result.received}\` ${row.coin.toUpperCase()}`,
+              `Expected: \`${row.expected_amount}\` ${row.coin.toUpperCase()}`,
               `TXID : \`${result.txid || '—'}\``,
             ].join('\n'),
           ),
@@ -199,7 +199,7 @@ async function processPaymentRow(client, row) {
       ]);
       await logShop(
         client,
-        `${emoji('warn')} Paiement insuffisant **${order.public_id}**: ${result.received}/${row.expected_amount} ${row.coin.toUpperCase()}`,
+        `${emoji('warn')} Insufficient payment **${order.public_id}**: ${result.received}/${row.expected_amount} ${row.coin.toUpperCase()}`,
       );
     }
     return;
@@ -219,7 +219,7 @@ async function processPaymentRow(client, row) {
     ]);
     await logShop(
       client,
-      `${emoji('pending')} Paiement détecté **${order.public_id}** ${row.coin.toUpperCase()} tx=\`${result.txid || '?'}\` (${result.confirmations}/${neededConf})`,
+      `${emoji('pending')} Payment detected **${order.public_id}** ${row.coin.toUpperCase()} tx=\`${result.txid || '?'}\` (${result.confirmations}/${neededConf})`,
     );
   } else if (alreadySeen && !isConfirmed) {
     // Update silent des confirmations
@@ -256,7 +256,7 @@ async function processPaymentRow(client, row) {
 
   await logShop(
     client,
-    `${emoji('check')} Paiement confirmé **${freshOrder.public_id}** ${row.coin.toUpperCase()} \`${result.txid || ''}\``,
+    `${emoji('check')} Payment confirmed **${freshOrder.public_id}** ${row.coin.toUpperCase()} \`${result.txid || ''}\``,
   );
 
   if (['paid', 'partial'].includes(freshOrder.status)) {
@@ -266,27 +266,27 @@ async function processPaymentRow(client, row) {
       await sendOrderContainers(client, after, [
         container(config.successColor).addTextDisplayComponents(
           text(
-            `# ${emoji('delivery')} Produit livré\nLivraison envoyée en **MP** à <@${after.user_id}>.\nTu peux **Fermer** le salon pour le transcript.`,
+            `# ${emoji('delivery')} Product delivered\nDelivery sent by **DM** to <@${after.user_id}>.\nYou can **Close** the channel for the transcript.`,
           ),
         ),
         ...buildOrderChannelPanel(after, null).components,
       ]);
       await logShop(
         client,
-        `${emoji('success')} **${after.public_id}** livré en DM (${row.coin.toUpperCase()} ${result.received})`,
+        `${emoji('success')} **${after.public_id}** delivered by DM (${row.coin.toUpperCase()} ${result.received})`,
       );
     } catch (e) {
       await sendOrderContainers(client, freshOrder, [
         container(config.dangerColor).addTextDisplayComponents(
           text(
-            `# ${emoji('warn')} Livraison échouée\n\`${e.message}\`\nUn admin peut utiliser **Livrer (MP)**.`,
+            `# ${emoji('warn')} Delivery failed\n\`${e.message}\`\nAn admin can use **Deliver (DM)**.`,
           ),
         ),
         ...buildOrderChannelPanel(orders.getOrder(freshOrder.id), null).components,
       ]);
       await logShop(
         client,
-        `${emoji('warn')} **${freshOrder.public_id}** payé mais livraison DM échouée: ${e.message}`,
+        `${emoji('warn')} **${freshOrder.public_id}** paid but DM delivery failed: ${e.message}`,
       );
     }
   }
@@ -321,7 +321,7 @@ function startCryptoWatcher(client) {
 
   timer = setInterval(tick, interval);
   setTimeout(tick, 3000);
-  console.log(`${emoji('crypto')} Watcher crypto démarré (toutes les ${interval}ms)`);
+  console.log(`${emoji('crypto')} Crypto watcher started (every ${interval}ms)`);
 }
 
 function stopCryptoWatcher() {

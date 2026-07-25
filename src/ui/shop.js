@@ -23,11 +23,11 @@ function buildShopPanel() {
       text(`# ${emoji('shop')} ${config.shopName}`),
       text(
         [
-          'Bienvenue dans la boutique.',
-          'Choisis un produit dans le menu, ajoute-le au panier, puis passe commande.',
+          'Welcome to the shop.',
+          'Pick a product from the menu, add it to your cart, then checkout.',
           stats.count
-            ? `${emoji('star')} Note moyenne : **${stats.average}/5** (${stats.count} avis)`
-            : `${emoji('review')} Sois le premier à laisser un avis après ton achat.`,
+            ? `${emoji('star')} Average rating: **${stats.average}/5** (${stats.count} reviews)`
+            : `${emoji('review')} Be the first to leave a review after your purchase.`,
         ].join('\n'),
       ),
     )
@@ -45,11 +45,11 @@ function buildShopPanel() {
                 const delivery =
                   p.delivery_type === 'auto'
                     ? `${emoji('auto')} Auto`
-                    : `${emoji('manual')} Manuel`;
-                return `**${p.name}** — ${money(p.price)}\n${emoji('stock')} Stock: ${stock} · ${delivery}\n${p.description || '_Aucune description_'}`;
+                    : `${emoji('manual')} Manual`;
+                return `**${p.name}** — ${money(p.price)}\n${emoji('stock')} Stock: ${stock} · ${delivery}\n${p.description || '_No description_'}`;
               })
               .join('\n\n')
-          : `${emoji('warn')} Aucun produit disponible pour le moment.`,
+          : `${emoji('warn')} No products available right now.`,
       ),
     );
 
@@ -59,7 +59,7 @@ function buildShopPanel() {
     components.push(
       select(
         'shop:select_product',
-        `${emoji('product')} Choisir un produit`,
+        `${emoji('product')} Choose a product`,
         list.slice(0, 25).map((p) => ({
           label: p.name,
           value: String(p.id),
@@ -71,7 +71,7 @@ function buildShopPanel() {
   }
 
   components.push(
-    row(btn('shop:open_cart', 'Mon panier', ButtonStyle.Primary, 'cart')),
+    row(btn('shop:open_cart', 'My cart', ButtonStyle.Primary, 'cart')),
   );
 
   return { components, flags: V2 };
@@ -79,19 +79,19 @@ function buildShopPanel() {
 
 function buildProductDetail(product) {
   const stock =
-    product.stock_mode === 'unlimited' ? 'Illimité' : String(product.available);
+    product.stock_mode === 'unlimited' ? 'Unlimited' : String(product.available);
   const c = container()
     .addTextDisplayComponents(
       text(`# ${emoji('product')} ${product.name}`),
-      text(product.description || '_Aucune description_'),
+      text(product.description || '_No description_'),
     )
     .addSeparatorComponents(separator())
     .addTextDisplayComponents(
       text(
         [
-          `${emoji('money')} Prix : **${money(product.price)}**`,
-          `${emoji('stock')} Stock : **${stock}**`,
-          `${emoji('delivery')} Livraison : **${product.delivery_type === 'auto' ? 'Automatique' : 'Manuelle'}**`,
+          `${emoji('money')} Price: **${money(product.price)}**`,
+          `${emoji('stock')} Stock: **${stock}**`,
+          `${emoji('delivery')} Delivery: **${product.delivery_type === 'auto' ? 'Automatic' : 'Manual'}**`,
         ].join('\n'),
       ),
     );
@@ -100,12 +100,12 @@ function buildProductDetail(product) {
     components: [
       c,
       row(
-        btn(`shop:add:${product.id}:1`, 'Ajouter ×1', ButtonStyle.Success, 'add'),
-        btn(`shop:add:${product.id}:2`, 'Ajouter ×2', ButtonStyle.Secondary, 'add'),
-        btn(`shop:add:${product.id}:5`, 'Ajouter ×5', ButtonStyle.Secondary, 'add'),
-        btn('shop:open_cart', 'Voir panier', ButtonStyle.Primary, 'cart'),
+        btn(`shop:add:${product.id}:1`, 'Add ×1', ButtonStyle.Success, 'add'),
+        btn(`shop:add:${product.id}:2`, 'Add ×2', ButtonStyle.Secondary, 'add'),
+        btn(`shop:add:${product.id}:5`, 'Add ×5', ButtonStyle.Secondary, 'add'),
+        btn('shop:open_cart', 'View cart', ButtonStyle.Primary, 'cart'),
       ),
-      row(btn('shop:back', 'Retour boutique', ButtonStyle.Secondary, 'back')),
+      row(btn('shop:back', 'Back to shop', ButtonStyle.Secondary, 'back')),
     ],
     flags: V2,
   };

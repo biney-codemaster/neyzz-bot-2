@@ -40,32 +40,32 @@ function buildPaypalPayment(order) {
 
   return {
     method: 'paypal',
-    title: 'Paiement PayPal',
+    title: 'PayPal payment',
     amount,
     email,
     link,
     instructions: [
       link
-        ? `1. Ouvre ce lien : ${link}`
-        : `1. Envoie **${amount} ${config.currencySymbol}** à \`${email}\` via PayPal`,
-      '2. Choisis **Amis et famille** si demandé (ou suis les consignes de la boutique)',
-      `3. Mets la référence **${order.public_id}** dans le message`,
-      '4. Clique sur **J\'ai payé** dans ce salon',
-      '5. Un admin confirmera ensuite le paiement (PayPal manuel)',
+        ? `1. Open this link: ${link}`
+        : `1. Send **${amount} ${config.currencySymbol}** to \`${email}\` via PayPal`,
+      '2. Choose **Friends and family** if asked (or follow the shop instructions)',
+      `3. Put the reference **${order.public_id}** in the payment note`,
+      '4. Click **I paid** in this channel',
+      '5. An admin will then confirm the payment (manual PayPal)',
     ].join('\n'),
   };
 }
 
 /**
- * Prépare le paiement crypto: alloue une adresse HD unique + montant exact.
+ * Prepare crypto payment: allocate a unique HD address + exact amount.
  */
 async function prepareCryptoPayment(order, cryptoId) {
   const coin = 'ltc';
-  if (cryptoId && cryptoId !== 'ltc') throw new Error('Seul Litecoin (LTC) est supporté');
-  if (!COIN_META[coin]) throw new Error('Crypto invalide');
+  if (cryptoId && cryptoId !== 'ltc') throw new Error('Only Litecoin (LTC) is supported');
+  if (!COIN_META[coin]) throw new Error('Invalid crypto');
 
   if (!isHdConfigured()) {
-    throw new Error('HD wallet non configuré — ajoute CRYPTO_MNEMONIC dans .env');
+    throw new Error('HD wallet not configured — add CRYPTO_MNEMONIC to .env');
   }
 
   const quote = await prices.eurToCryptoAmount(coin, order.total);
@@ -88,23 +88,23 @@ function buildCryptoPaymentFromRow(order, row, quote = null) {
   return {
     method: 'crypto',
     crypto: { id: row.coin, label: meta.label, emojiKey: meta.emojiKey },
-    title: `Paiement ${meta.label}`,
+    title: `${meta.label} payment`,
     amount: amountStr,
     amountEur: order.total,
     address: row.address,
     path: row.derivation_path,
     quote,
     instructions: [
-      `${emoji('crypto')} Envoie **exactement** \`${amountStr} ${row.coin.toUpperCase()}\``,
+      `${emoji('crypto')} Send **exactly** \`${amountStr} ${row.coin.toUpperCase()}\``,
       `(≈ **${Number(order.total).toFixed(2)} ${config.currencySymbol}**)`,
       '',
-      `${emoji('lock')} Adresse unique (1 seule utilisation) :`,
+      `${emoji('lock')} Unique address (single use):`,
       `\`${row.address}\``,
       '',
       note ? `${emoji('warn')} ${note}` : null,
-      `${emoji('clock')} Dès que le réseau confirme (≥ ${conf} conf), livraison **auto en MP**.`,
-      `${emoji('info')} N'envoie rien d'autre sur cette adresse.`,
-      `${emoji('lock')} Chemin HD : \`${row.derivation_path}\``,
+      `${emoji('clock')} Once the network confirms (≥ ${conf} conf), delivery is **automatic by DM**.`,
+      `${emoji('info')} Do not send anything else to this address.`,
+      `${emoji('lock')} HD path: \`${row.derivation_path}\``,
     ]
       .filter(Boolean)
       .join('\n'),
@@ -115,13 +115,12 @@ function buildCryptoPayment(order, cryptoId) {
   const row = paymentAddresses.getAddressByOrder(order.id);
   if (row) return buildCryptoPaymentFromRow(order, row);
 
-  // Pas encore allouée (ex: panel avant prepare) — message placeholder
   const meta = COIN_META[cryptoId || order.crypto_currency];
   return {
     method: 'crypto',
-    title: meta ? `Paiement ${meta.label}` : 'Paiement Crypto',
+    title: meta ? `${meta.label} payment` : 'Crypto payment',
     amount: Number(order.total).toFixed(2),
-    instructions: `${emoji('pending')} Génération de l'adresse HD en cours…`,
+    instructions: `${emoji('pending')} Generating HD address…`,
   };
 }
 

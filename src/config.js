@@ -20,7 +20,7 @@ const config = {
   logsChannelId: process.env.LOGS_CHANNEL_ID || null,
   reviewsChannelId: process.env.REVIEWS_CHANNEL_ID || null,
 
-  shopName: process.env.SHOP_NAME || 'Boutique',
+  shopName: process.env.SHOP_NAME || 'Shop',
   currency: process.env.CURRENCY || 'EUR',
   currencySymbol: process.env.CURRENCY_SYMBOL || '€',
 
@@ -36,7 +36,7 @@ const config = {
     enabledCoins: ['ltc'],
     networkNote:
       process.env.CRYPTO_NETWORK_NOTE ||
-      'Envoie uniquement du Litecoin (LTC) sur cette adresse.',
+      'Send Litecoin (LTC) only to this address.',
     /** Confirmations requises avant livraison auto */
     confirmations: {
       ltc: Number(process.env.CRYPTO_CONF_LTC || 1),

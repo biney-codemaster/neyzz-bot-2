@@ -1,68 +1,70 @@
-# neyzz-bot-2 — Boutique Discord (style SellAuth)
+# neyzz-bot-2 — Discord shop bot (SellAuth-style)
 
-Bot Discord.js **Components V2** : panier, PayPal, crypto HD wallet (adresse unique / paiement), livraison **toujours en MP**.
+Discord.js **Components V2** bot: cart, PayPal, Litecoin HD wallet (unique address per payment), delivery **always by DM**.
 
-## Lancer
+Public UI is **English**. Admin dashboard (`/admin`) stays **French**.
+
+## Run
 
 ```bash
 cp .env.example .env
-# remplis DISCORD_TOKEN, DISCORD_CLIENT_ID, DISCORD_GUILD_ID, CRYPTO_MNEMONIC…
+# fill DISCORD_TOKEN, DISCORD_CLIENT_ID, DISCORD_GUILD_ID, CRYPTO_MNEMONIC…
 
 npm install
 npm start
 ```
 
-Au démarrage, `index.js` :
-1. connecte le bot
-2. **enregistre tout seul** les commandes `/panier` `/admin` `/rename` `/renew` `/giveaway` `/reroll`
-3. démarre le watcher crypto si la seed HD est configurée + scheduler giveaways
+On boot, `index.js`:
+1. connects the bot
+2. **registers** slash commands `/cart` `/admin` `/rename` `/renew` `/giveaway` `/reroll`
+3. starts the crypto watcher (if HD seed is set) + giveaway scheduler
 
-Plus besoin de `deploy-commands`.
+No separate `deploy-commands` needed.
 
-La boutique se poste via `/admin` → **Poster la boutique** (panel permanent).
+Post the shop via `/admin` → **Poster la boutique** (permanent panel).
 
 ### Pterodactyl
 
-Startup : `npm install && npm start`
+Startup: `npm install && npm start`
 
-## Crypto (Exodus — Litecoin uniquement)
+## Crypto (Exodus — Litecoin only)
 
-1. Mets ta **seed Exodus** dans `CRYPTO_MNEMONIC`
-2. Chaque commande génère une adresse LTC neuve (BIP44 `m/44'/2'/0'/0`)
-3. Le client paie en LTC → détection auto → livraison en MP
-4. Les fonds apparaissent dans **ton Exodus** (même seed)
+1. Put your **Exodus seed** in `CRYPTO_MNEMONIC`
+2. Each order gets a new LTC address (BIP44 `m/44'/2'/0'/0`)
+3. Customer pays LTC → auto detect → DM delivery
+4. Funds show up in **your Exodus** (same seed)
 
-**Ne partage jamais la mnemonic.**
+**Never share the mnemonic.**
 
-## Flow acheteur
+## Buyer flow
 
-1. Boutique → panier → PayPal ou Litecoin (LTC)  
-2. Salon commande + instructions de paiement  
-3. LTC : adresse HD unique + montant exact  
-4. Détection auto → livraison **MP**  
-5. Fermer → transcript HTML (MP + logs)  
+1. Shop → cart → PayPal or Litecoin (LTC)  
+2. Order channel + payment instructions  
+3. LTC: unique HD address + exact amount  
+4. Auto detect → **DM** delivery  
+5. Close → HTML transcript (DM + logs)  
 
-## Commandes
+## Commands
 
-| Commande | Rôle |
-|----------|------|
-| `/panier` | Panier |
-| `/admin` | Dashboard (+ Poster la boutique) |
-| `/rename` | Renommer un ticket de commande (admin) |
-| `/renew` | Recréer le salon courant au même endroit (admin) |
+| Command | Role |
+|---------|------|
+| `/cart` | Cart |
+| `/admin` | Dashboard (French UI, + post shop) |
+| `/rename` | Rename an order ticket (admin) |
+| `/renew` | Recreate current channel in place (admin) |
 | `/giveaway create\|list\|cancel\|extend` | Giveaways (admin) |
-| `/reroll` | Relancer un tirage terminé (admin) |
+| `/reroll` | Reroll an ended giveaway (admin) |
 
 ### Giveaways
 
-- Boutons **Participer** / **Quitter**
-- Conditions optionnelles : rôle, âge du compte, ancienneté serveur
-- Tirage auto à la fin (ignore les membres partis)
-- Annonce des gagnants dans un **nouveau message**
-- Lot = texte libre (pas lié à la boutique)
+- **Enter** / **Leave** buttons
+- Optional requirements: role, account age, server age
+- Auto draw at the end (skips members who left)
+- Winners announced in a **new message**
+- Prize = free text (not linked to the shop)
 
-## Variables importantes
+## Important env vars
 
-Voir `.env.example` — surtout :
+See `.env.example` — especially:
 - `DISCORD_TOKEN` / `DISCORD_CLIENT_ID` / `DISCORD_GUILD_ID`
-- `CRYPTO_MNEMONIC` (Litecoin uniquement)
+- `CRYPTO_MNEMONIC` (Litecoin only)

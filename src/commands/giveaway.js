@@ -15,7 +15,7 @@ const { container, text } = require('../ui/v2');
 
 function deny(interaction) {
   return interaction.reply(
-    notice(`${emoji('cross')} Accès refusé — admin uniquement.`, config.dangerColor),
+    notice(`${emoji('cross')} Access denied — admin only.`, config.dangerColor),
   );
 }
 
@@ -23,78 +23,78 @@ module.exports = [
   {
     data: new SlashCommandBuilder()
       .setName('giveaway')
-      .setDescription('Gérer les giveaways')
+      .setDescription('Manage giveaways')
       .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
       .addSubcommand((sub) =>
         sub
           .setName('create')
-          .setDescription('Créer un giveaway')
+          .setDescription('Create a giveaway')
           .addChannelOption((o) =>
             o
-              .setName('salon')
-              .setDescription('Salon où poster le giveaway')
+              .setName('channel')
+              .setDescription('Channel to post the giveaway in')
               .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
               .setRequired(true),
           )
           .addStringOption((o) =>
-            o.setName('lot').setDescription('Lot à gagner (texte)').setRequired(true).setMaxLength(200),
+            o.setName('prize').setDescription('Prize text').setRequired(true).setMaxLength(200),
           )
           .addStringOption((o) =>
             o
-              .setName('duree')
-              .setDescription('Durée (ex: 30m, 2h, 1d)')
+              .setName('duration')
+              .setDescription('Duration (e.g. 30m, 2h, 1d)')
               .setRequired(true),
           )
           .addIntegerOption((o) =>
             o
-              .setName('gagnants')
-              .setDescription('Nombre de gagnants')
+              .setName('winners')
+              .setDescription('Number of winners')
               .setRequired(true)
               .setMinValue(1)
               .setMaxValue(50),
           )
           .addRoleOption((o) =>
-            o.setName('role').setDescription('Rôle requis pour participer').setRequired(false),
+            o.setName('role').setDescription('Required role to enter').setRequired(false),
           )
           .addIntegerOption((o) =>
             o
-              .setName('age_compte')
-              .setDescription('Âge minimum du compte Discord (jours)')
+              .setName('account_age')
+              .setDescription('Minimum Discord account age (days)')
               .setRequired(false)
               .setMinValue(0)
               .setMaxValue(3650),
           )
           .addIntegerOption((o) =>
             o
-              .setName('anciennete')
-              .setDescription('Ancienneté minimum sur le serveur (jours)')
+              .setName('server_age')
+              .setDescription('Minimum server membership (days)')
               .setRequired(false)
               .setMinValue(0)
               .setMaxValue(3650),
           ),
       )
       .addSubcommand((sub) =>
-        sub.setName('list').setDescription('Lister les giveaways en cours'),
+        sub.setName('list').setDescription('List running giveaways'),
       )
       .addSubcommand((sub) =>
         sub
           .setName('cancel')
-          .setDescription('Annuler un giveaway')
+          .setDescription('Cancel a giveaway')
           .addIntegerOption((o) =>
-            o.setName('id').setDescription('ID du giveaway').setRequired(true).setMinValue(1),
+            o.setName('id').setDescription('Giveaway ID').setRequired(true).setMinValue(1),
           ),
       )
       .addSubcommand((sub) =>
         sub
           .setName('extend')
-          .setDescription('Prolonger un giveaway')
+          .setDescription('Extend a giveaway')
           .addIntegerOption((o) =>
-            o.setName('id').setDescription('ID du giveaway').setRequired(true).setMinValue(1),
+            o.setName('id').setDescription('Giveaway ID').setRequired(true).setMinValue(1),
           )
           .addStringOption((o) =>
             o
-              .setName('duree')
-              .setDescription('Durée à ajouter (ex: 30m, 1h)')
+              .setName('duration')
+              .setDescription('Duration to add (e.g. 30m, 1h)')
               .setRequired(true),
           ),
       ),
@@ -104,19 +104,19 @@ module.exports = [
       const sub = interaction.options.getSubcommand();
 
       if (sub === 'create') {
-        const channel = interaction.options.getChannel('salon', true);
-        const prize = interaction.options.getString('lot', true).trim();
-        const duration = interaction.options.getString('duree', true);
-        const winnersCount = interaction.options.getInteger('gagnants', true);
+        const channel = interaction.options.getChannel('channel', true);
+        const prize = interaction.options.getString('prize', true).trim();
+        const duration = interaction.options.getString('duration', true);
+        const winnersCount = interaction.options.getInteger('winners', true);
         const role = interaction.options.getRole('role');
-        const minAccountDays = interaction.options.getInteger('age_compte') || 0;
-        const minServerDays = interaction.options.getInteger('anciennete') || 0;
+        const minAccountDays = interaction.options.getInteger('account_age') || 0;
+        const minServerDays = interaction.options.getInteger('server_age') || 0;
 
         const endsAt = giveaways.endsAtFromDuration(duration);
         if (!endsAt) {
           return interaction.reply(
             notice(
-              `${emoji('cross')} Durée invalide. Exemples : \`30m\`, \`2h\`, \`1d\` (min 10s, max 60j).`,
+              `${emoji('cross')} Invalid duration. Examples: \`30m\`, \`2h\`, \`1d\` (min 10s, max 60d).`,
               config.dangerColor,
             ),
           );
@@ -124,7 +124,7 @@ module.exports = [
 
         if (!channel.isTextBased?.()) {
           return interaction.reply(
-            notice(`${emoji('cross')} Salon invalide.`, config.dangerColor),
+            notice(`${emoji('cross')} Invalid channel.`, config.dangerColor),
           );
         }
 
@@ -146,7 +146,7 @@ module.exports = [
 
         return interaction.reply(
           notice(
-            `${emoji('gift')} Giveaway #\`${g.id}\` créé dans ${channel}.`,
+            `${emoji('gift')} Giveaway #\`${g.id}\` created in ${channel}.`,
             config.successColor,
           ),
         );
@@ -156,7 +156,7 @@ module.exports = [
         const list = giveaways.listRunning(interaction.guildId);
         if (!list.length) {
           return interaction.reply(
-            notice(`${emoji('info')} Aucun giveaway en cours.`),
+            notice(`${emoji('info')} No running giveaways.`),
           );
         }
 
@@ -165,14 +165,14 @@ module.exports = [
           return (
             `**#${g.id}** — ${g.prize}\n` +
             `${emoji('user')} ${g.entriesCount} · ${emoji('trophy')} ${g.winners_count} · ` +
-            `fin <t:${unix}:R> · <#${g.channel_id}>`
+            `ends <t:${unix}:R> · <#${g.channel_id}>`
           );
         });
 
         return interaction.reply({
           components: [
             container().addTextDisplayComponents(
-              text(`# ${emoji('gift')} Giveaways en cours`),
+              text(`# ${emoji('gift')} Running giveaways`),
               text(lines.join('\n\n')),
             ),
           ],
@@ -185,32 +185,32 @@ module.exports = [
         const g = giveaways.getGiveaway(id);
         if (!g || g.guild_id !== interaction.guildId) {
           return interaction.reply(
-            notice(`${emoji('cross')} Giveaway introuvable.`, config.dangerColor),
+            notice(`${emoji('cross')} Giveaway not found.`, config.dangerColor),
           );
         }
         if (g.status !== 'running') {
           return interaction.reply(
-            notice(`${emoji('cross')} Ce giveaway n'est plus en cours.`, config.dangerColor),
+            notice(`${emoji('cross')} This giveaway is no longer running.`, config.dangerColor),
           );
         }
         await runner.cancelAndRefresh(interaction.client, id);
         return interaction.reply(
-          notice(`${emoji('check')} Giveaway #\`${id}\` annulé.`, config.successColor),
+          notice(`${emoji('check')} Giveaway #\`${id}\` cancelled.`, config.successColor),
         );
       }
 
       if (sub === 'extend') {
         const id = interaction.options.getInteger('id', true);
-        const duration = interaction.options.getString('duree', true);
+        const duration = interaction.options.getString('duration', true);
         const g = giveaways.getGiveaway(id);
         if (!g || g.guild_id !== interaction.guildId) {
           return interaction.reply(
-            notice(`${emoji('cross')} Giveaway introuvable.`, config.dangerColor),
+            notice(`${emoji('cross')} Giveaway not found.`, config.dangerColor),
           );
         }
         if (g.status !== 'running') {
           return interaction.reply(
-            notice(`${emoji('cross')} Ce giveaway n'est plus en cours.`, config.dangerColor),
+            notice(`${emoji('cross')} This giveaway is no longer running.`, config.dangerColor),
           );
         }
 
@@ -218,7 +218,7 @@ module.exports = [
         if (!ms) {
           return interaction.reply(
             notice(
-              `${emoji('cross')} Durée invalide. Exemples : \`30m\`, \`2h\`, \`1d\`.`,
+              `${emoji('cross')} Invalid duration. Examples: \`30m\`, \`2h\`, \`1d\`.`,
               config.dangerColor,
             ),
           );
@@ -230,7 +230,7 @@ module.exports = [
         const unix = Math.floor(Date.parse(newEndsAt) / 1000);
         return interaction.reply(
           notice(
-            `${emoji('check')} Giveaway #\`${id}\` prolongé jusqu'à <t:${unix}:F>.`,
+            `${emoji('check')} Giveaway #\`${id}\` extended until <t:${unix}:F>.`,
             config.successColor,
           ),
         );
@@ -242,15 +242,15 @@ module.exports = [
   {
     data: new SlashCommandBuilder()
       .setName('reroll')
-      .setDescription('Relancer le tirage d\'un giveaway terminé')
+      .setDescription('Reroll winners for an ended giveaway')
       .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
       .addIntegerOption((o) =>
-        o.setName('id').setDescription('ID du giveaway').setRequired(true).setMinValue(1),
+        o.setName('id').setDescription('Giveaway ID').setRequired(true).setMinValue(1),
       )
       .addIntegerOption((o) =>
         o
-          .setName('gagnants')
-          .setDescription('Nombre de nouveaux gagnants (défaut = original)')
+          .setName('winners')
+          .setDescription('Number of new winners (default = original)')
           .setRequired(false)
           .setMinValue(1)
           .setMaxValue(50),
@@ -259,11 +259,11 @@ module.exports = [
       if (!isAdmin(interaction.member)) return deny(interaction);
 
       const id = interaction.options.getInteger('id', true);
-      const count = interaction.options.getInteger('gagnants');
+      const count = interaction.options.getInteger('winners');
       const g = giveaways.getGiveaway(id);
       if (!g || g.guild_id !== interaction.guildId) {
         return interaction.reply(
-          notice(`${emoji('cross')} Giveaway introuvable.`, config.dangerColor),
+          notice(`${emoji('cross')} Giveaway not found.`, config.dangerColor),
         );
       }
 

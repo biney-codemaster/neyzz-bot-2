@@ -16,29 +16,29 @@ const { MessageFlags } = require('discord.js');
 function buildCartPanel(cart) {
   const c = container()
     .addTextDisplayComponents(
-      text(`# ${emoji('cart')} Ton panier`),
+      text(`# ${emoji('cart')} Your cart`),
       text(
         cart.items.length
           ? cart.items
               .map(
                 (i) =>
-                  `**${i.name}** × ${i.quantity} — ${money(i.lineTotal)}\n_Livraison ${i.delivery_type}_`,
+                  `**${i.name}** × ${i.quantity} — ${money(i.lineTotal)}\n_Delivery: ${i.delivery_type}_`,
               )
               .join('\n\n')
-          : `${emoji('info')} Ton panier est vide. Ajoute des produits depuis la boutique.`,
+          : `${emoji('info')} Your cart is empty. Add products from the shop.`,
       ),
     )
     .addSeparatorComponents(separator())
     .addTextDisplayComponents(
       text(
         [
-          `Sous-total : **${money(cart.subtotal)}**`,
+          `Subtotal: **${money(cart.subtotal)}**`,
           cart.discount > 0
-            ? `Remise${cart.couponCode ? ` (${cart.couponCode})` : ''} : −**${money(cart.discount)}**`
+            ? `Discount${cart.couponCode ? ` (${cart.couponCode})` : ''}: −**${money(cart.discount)}**`
             : cart.couponError
-              ? `${emoji('warn')} Coupon : ${cart.couponError}`
-              : `${emoji('coupon')} Aucun code promo`,
-          `Total : **${money(cart.total)}**`,
+              ? `${emoji('warn')} Coupon: ${cart.couponError}`
+              : `${emoji('coupon')} No promo code`,
+          `Total: **${money(cart.total)}**`,
         ].join('\n'),
       ),
     );
@@ -49,11 +49,11 @@ function buildCartPanel(cart) {
     components.push(
       select(
         'cart:manage_item',
-        `${emoji('edit')} Gérer un article`,
+        `${emoji('edit')} Manage an item`,
         cart.items.map((i) => ({
           label: i.name,
           value: String(i.product_id),
-          description: `qté ${i.quantity} · ${money(i.lineTotal)}`,
+          description: `qty ${i.quantity} · ${money(i.lineTotal)}`,
           emojiKey: 'product',
         })),
       ),
@@ -62,13 +62,13 @@ function buildCartPanel(cart) {
 
   const methods = payments.enabledPaymentMethods();
   const actionButtons = [
-    btn('cart:coupon', 'Code promo', ButtonStyle.Secondary, 'coupon'),
-    btn('shop:back', 'Boutique', ButtonStyle.Secondary, 'shop'),
+    btn('cart:coupon', 'Promo code', ButtonStyle.Secondary, 'coupon'),
+    btn('shop:back', 'Shop', ButtonStyle.Secondary, 'shop'),
   ];
 
   if (cart.items.length) {
     actionButtons.unshift(
-      btn('cart:clear', 'Vider', ButtonStyle.Danger, 'trash'),
+      btn('cart:clear', 'Clear', ButtonStyle.Danger, 'trash'),
     );
   }
 
@@ -78,11 +78,11 @@ function buildCartPanel(cart) {
     components.push(
       select(
         'cart:pay_method',
-        `${emoji('money')} Passer commande — choisir le paiement`,
+        `${emoji('money')} Checkout — choose payment`,
         methods.map((m) => ({
           label: m.label,
           value: m.id,
-          description: `Payer avec ${m.label}`,
+          description: `Pay with ${m.label}`,
           emojiKey: m.emojiKey,
         })),
       ),
@@ -90,7 +90,7 @@ function buildCartPanel(cart) {
   } else if (cart.items.length && !methods.length) {
     components.push(
       container(0xf1c40f).addTextDisplayComponents(
-        text(`${emoji('warn')} Aucun moyen de paiement configuré. Contacte un admin.`),
+        text(`${emoji('warn')} No payment method configured. Contact an admin.`),
       ),
     );
   }
@@ -103,13 +103,13 @@ function buildItemManagePanel(productId, name) {
     components: [
       container().addTextDisplayComponents(
         text(`# ${emoji('edit')} ${name}`),
-        text('Modifie la quantité ou retire cet article.'),
+        text('Change the quantity or remove this item.'),
       ),
       row(
         btn(`cart:qty:${productId}:dec`, '−1', ButtonStyle.Secondary, 'remove'),
         btn(`cart:qty:${productId}:inc`, '+1', ButtonStyle.Secondary, 'add'),
-        btn(`cart:remove:${productId}`, 'Retirer', ButtonStyle.Danger, 'trash'),
-        btn('shop:open_cart', 'Retour panier', ButtonStyle.Primary, 'back'),
+        btn(`cart:remove:${productId}`, 'Remove', ButtonStyle.Danger, 'trash'),
+        btn('shop:open_cart', 'Back to cart', ButtonStyle.Primary, 'back'),
       ),
     ],
     flags: V2,
@@ -122,9 +122,9 @@ function buildCryptoSelect(token = 'pending') {
     return {
       components: [
         container(0xf1c40f).addTextDisplayComponents(
-          text(`${emoji('warn')} Aucune adresse crypto configurée. Contacte un admin.`),
+          text(`${emoji('warn')} No crypto configured. Contact an admin.`),
         ),
-        row(btn('shop:open_cart', 'Retour panier', ButtonStyle.Secondary, 'back')),
+        row(btn('shop:open_cart', 'Back to cart', ButtonStyle.Secondary, 'back')),
       ],
       flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
     };
@@ -133,22 +133,22 @@ function buildCryptoSelect(token = 'pending') {
   return {
     components: [
       container().addTextDisplayComponents(
-        text(`# ${emoji('crypto')} Choisir la crypto`),
-        text('Sélectionne le coin / réseau pour finaliser la commande.'),
+        text(`# ${emoji('crypto')} Choose crypto`),
+        text('Select the coin / network to complete your order.'),
       ),
       select(
         `checkout:crypto:${token}`,
-        'Choisir une crypto',
+        'Choose a crypto',
         cryptos.map((c) => ({
           label: c.label,
           value: c.id,
           description: c.hd
-            ? 'Adresse HD unique générée à la commande'
+            ? 'Unique HD address generated per order'
             : `${String(c.address || '').slice(0, 18)}…`,
           emojiKey: c.emojiKey,
         })),
       ),
-      row(btn('shop:open_cart', 'Retour panier', ButtonStyle.Secondary, 'back')),
+      row(btn('shop:open_cart', 'Back to cart', ButtonStyle.Secondary, 'back')),
     ],
     flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
   };

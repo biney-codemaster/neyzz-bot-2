@@ -184,10 +184,10 @@ async function syncCountersPastUsedAddresses({ maxScan = 30 } = {}) {
  */
 async function allocateAddressForOrder({ orderId, coin, expectedAmount, expectedAmountEur }) {
   ensureSchema();
-  if (!isHdConfigured()) throw new Error('HD wallet non configuré (CRYPTO_MNEMONIC)');
-  if (coin && coin !== 'ltc') throw new Error('Seul Litecoin (LTC) est supporté');
+  if (!isHdConfigured()) throw new Error('HD wallet not configured (CRYPTO_MNEMONIC)');
+  if (coin && coin !== 'ltc') throw new Error('Only Litecoin (LTC) is supported');
   coin = 'ltc';
-  if (!COIN_META[coin]) throw new Error(`Coin non supporté: ${coin}`);
+  if (!COIN_META[coin]) throw new Error(`Unsupported coin: ${coin}`);
 
   const existing = getDb()
     .prepare('SELECT * FROM payment_addresses WHERE order_id = ?')
@@ -257,7 +257,7 @@ async function allocateAddressForOrder({ orderId, coin, expectedAmount, expected
       throw e;
     }
   }
-  throw new Error('Impossible d\'allouer une adresse unique propre (trop d\'adresses sales)');
+  throw new Error('Could not allocate a clean unique address (too many dirty addresses)');
 }
 
 function getAddressByOrder(orderId) {

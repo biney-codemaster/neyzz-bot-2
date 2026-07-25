@@ -83,7 +83,7 @@ async function handleButton(interaction) {
     const g = giveaways.getGiveaway(giveawayId);
     if (!g || g.status !== 'running') {
       return interaction.reply(
-        notice(`${emoji('cross')} Ce giveaway est terminé ou introuvable.`, config.dangerColor),
+        notice(`${emoji('cross')} This giveaway has ended or was not found.`, config.dangerColor),
       );
     }
 
@@ -96,25 +96,25 @@ async function handleButton(interaction) {
       }
       if (giveaways.hasEntry(g.id, interaction.user.id)) {
         return interaction.reply(
-          notice(`${emoji('info')} Tu participes déjà. Utilise **Quitter** pour te retirer.`),
+          notice(`${emoji('info')} You already entered. Use **Leave** to withdraw.`),
         );
       }
       giveaways.join(g.id, interaction.user.id);
       await giveawayRunner.refreshGiveawayMessage(interaction.client, g.id);
       return interaction.reply(
-        notice(`${emoji('party')} Participation enregistrée !`, config.successColor),
+        notice(`${emoji('party')} You're in!`, config.successColor),
       );
     }
 
     if (!giveaways.hasEntry(g.id, interaction.user.id)) {
       return interaction.reply(
-        notice(`${emoji('info')} Tu ne participes pas à ce giveaway.`),
+        notice(`${emoji('info')} You're not in this giveaway.`),
       );
     }
     giveaways.leave(g.id, interaction.user.id);
     await giveawayRunner.refreshGiveawayMessage(interaction.client, g.id);
     return interaction.reply(
-      notice(`${emoji('leave')} Tu as quitté le giveaway.`),
+      notice(`${emoji('leave')} You left the giveaway.`),
     );
   }
 
@@ -141,7 +141,7 @@ async function handleButton(interaction) {
     const [, , productId, qtyRaw] = id.split(':');
     try {
       const c = cart.addToCart(interaction.user.id, Number(productId), parseQuantity(qtyRaw, 1));
-      return interaction.reply(notice(`${emoji('check')} Ajouté au panier.\nTotal: **${c.total.toFixed(2)} ${config.currencySymbol}**`));
+      return interaction.reply(notice(`${emoji('check')} Added to cart.\nTotal: **${c.total.toFixed(2)} ${config.currencySymbol}**`));
     } catch (e) {
       return interaction.reply(notice(`${emoji('cross')} ${e.message}`, config.dangerColor));
     }
@@ -158,7 +158,7 @@ async function handleButton(interaction) {
     const [, , productId, dir] = id.split(':');
     const c = cart.getCart(interaction.user.id);
     const item = c.items.find((i) => String(i.product_id) === productId);
-    if (!item) return interaction.reply(notice('Article introuvable.', config.dangerColor));
+    if (!item) return interaction.reply(notice('Item not found.', config.dangerColor));
     const next = dir === 'inc' ? item.quantity + 1 : item.quantity - 1;
     try {
       cart.setItemQuantity(interaction.user.id, Number(productId), next);
@@ -178,24 +178,24 @@ async function handleButton(interaction) {
     const orderId = Number(id.split(':')[2]);
     const order = orders.getOrder(orderId);
     if (!order || order.user_id !== interaction.user.id) {
-      return interaction.reply(notice('Commande introuvable.', config.dangerColor));
+      return interaction.reply(notice('Order not found.', config.dangerColor));
     }
     if (order.payment_method === 'crypto') {
       return interaction.reply(
-        notice(`${emoji('info')} Paiement crypto détecté automatiquement — pas besoin de signaler.`, config.accentColor),
+        notice(`${emoji('info')} Crypto payment is detected automatically — no need to report.`, config.accentColor),
       );
     }
     await logShop(
       interaction.client,
-      `${emoji('pending')} <@${interaction.user.id}> signale un paiement pour **${order.public_id}** (${order.payment_method}).`,
+      `${emoji('pending')} <@${interaction.user.id}> reported a payment for **${order.public_id}** (${order.payment_method}).`,
     );
     await interaction.reply(
-      notice(`${emoji('check')} Signalement envoyé. Un admin va vérifier ton paiement.`),
+      notice(`${emoji('check')} Report sent. An admin will verify your payment.`),
     );
     await interaction.channel.send({
       components: [
         container(config.warnColor).addTextDisplayComponents(
-          text(`${emoji('admin')} <@${interaction.user.id}> a cliqué sur **J'ai payé** pour \`${order.public_id}\`.`),
+          text(`${emoji('admin')} <@${interaction.user.id}> clicked **I paid** for \`${order.public_id}\`.`),
         ),
       ],
       flags: V2,
@@ -206,19 +206,19 @@ async function handleButton(interaction) {
   if (id.startsWith('order:close:')) {
     const orderId = Number(id.split(':')[2]);
     const order = orders.getOrder(orderId);
-    if (!order) return interaction.reply(notice('Commande introuvable.', config.dangerColor));
+    if (!order) return interaction.reply(notice('Order not found.', config.dangerColor));
     const allowed =
       order.user_id === interaction.user.id || isAdmin(interaction.member);
     if (!allowed) {
-      return interaction.reply(notice('Tu ne peux pas fermer cette commande.', config.dangerColor));
+      return interaction.reply(notice("You can't close this order.", config.dangerColor));
     }
     if (!['delivered', 'cancelled'].includes(order.status)) {
       return interaction.reply(
-        notice('Tu peux fermer seulement une commande livrée ou annulée.', config.warnColor),
+        notice('You can only close a delivered or cancelled order.', config.warnColor),
       );
     }
     if (order.closed_at) {
-      return interaction.reply(notice('Déjà fermée.', config.warnColor));
+      return interaction.reply(notice('Already closed.', config.warnColor));
     }
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     try {
@@ -231,7 +231,7 @@ async function handleButton(interaction) {
         components: [
           container(config.successColor).addTextDisplayComponents(
             text(
-              `${emoji('check')} Transcript HTML envoyé en **MP** + salon logs.\nSalon supprimé dans quelques secondes.`,
+              `${emoji('check')} HTML transcript sent by **DM** + logs channel.\nChannel will be deleted shortly.`,
             ),
           ),
         ],
@@ -254,12 +254,12 @@ async function handleButton(interaction) {
     const orderId = Number(id.split(':')[2]);
     const order = orders.getOrder(orderId);
     if (!order || order.user_id !== interaction.user.id) {
-      return interaction.reply(notice('Commande introuvable.', config.dangerColor));
+      return interaction.reply(notice('Order not found.', config.dangerColor));
     }
     try {
-      orders.cancelOrder(orderId, 'Annulée par le client');
+      orders.cancelOrder(orderId, 'Cancelled by customer');
       await bumpShop(interaction.client);
-      await interaction.reply(notice(`${emoji('check')} Commande annulée.`));
+      await interaction.reply(notice(`${emoji('check')} Order cancelled.`));
       await refreshOrderPanel(interaction.channel, orderId);
     } catch (e) {
       return interaction.reply(notice(`${emoji('cross')} ${e.message}`, config.dangerColor));
@@ -271,10 +271,10 @@ async function handleButton(interaction) {
     const orderId = Number(id.split(':')[2]);
     const order = orders.getOrder(orderId);
     if (!order || order.user_id !== interaction.user.id) {
-      return interaction.reply(notice('Commande introuvable.', config.dangerColor));
+      return interaction.reply(notice('Order not found.', config.dangerColor));
     }
     if (reviews.getReviewByOrder(orderId)) {
-      return interaction.reply(notice('Tu as déjà laissé un avis pour cette commande.'));
+      return interaction.reply(notice('You already left a review for this order.'));
     }
     return interaction.showModal(modals.reviewModal(orderId));
   }
@@ -282,33 +282,33 @@ async function handleButton(interaction) {
   // Actions commande (admin)
   if (id.startsWith('staff:')) {
     if (!isAdmin(interaction.member)) {
-      return interaction.reply(notice('Réservé aux admins.', config.dangerColor));
+      return interaction.reply(notice('Admins only.', config.dangerColor));
     }
     const [, action, orderIdRaw] = id.split(':');
     const orderId = Number(orderIdRaw);
 
     if (action === 'confirm_pay') {
       const current = orders.getOrder(orderId);
-      if (!current) return interaction.reply(notice('Commande introuvable.', config.dangerColor));
+      if (!current) return interaction.reply(notice('Order not found.', config.dangerColor));
       if (current.payment_method === 'crypto') {
         return interaction.reply(
-          notice(`${emoji('info')} Crypto = confirmation automatique on-chain. Pas besoin de ce bouton.`, config.accentColor),
+          notice(`${emoji('info')} Crypto = automatic on-chain confirmation. No need for this button.`, config.accentColor),
         );
       }
       if (!['pending', 'awaiting_payment'].includes(current.status)) {
         return interaction.reply(
-          notice(`${emoji('warn')} Paiement déjà traité (statut: \`${current.status}\`).`, config.warnColor),
+          notice(`${emoji('warn')} Payment already processed (status: \`${current.status}\`).`, config.warnColor),
         );
       }
       const order = orders.markPaid(orderId);
       await interaction.reply(
         notice(
-          `${emoji('check')} Paiement confirmé pour **${order.public_id}**.\nUtilise **Livrer (MP)** pour envoyer le produit.`,
+          `${emoji('check')} Payment confirmed for **${order.public_id}**.\nUse **Deliver (DM)** to send the product.`,
         ),
       );
       await logShop(
         interaction.client,
-        `${emoji('money')} ${order.public_id} paiement confirmé par <@${interaction.user.id}> (pas encore livré)`,
+        `${emoji('money')} ${order.public_id} payment confirmed by <@${interaction.user.id}> (not delivered yet)`,
       );
       await refreshOrderPanel(interaction.channel, orderId);
       return;
@@ -316,14 +316,14 @@ async function handleButton(interaction) {
 
     if (action === 'deliver') {
       const order = orders.getOrder(orderId);
-      if (!order) return interaction.reply(notice('Commande introuvable.', config.dangerColor));
+      if (!order) return interaction.reply(notice('Order not found.', config.dangerColor));
       if (order.status === 'delivered') {
-        return interaction.reply(notice(`${emoji('warn')} Déjà livrée.`, config.warnColor));
+        return interaction.reply(notice(`${emoji('warn')} Already delivered.`, config.warnColor));
       }
       if (!['paid', 'partial'].includes(order.status)) {
         return interaction.reply(
           notice(
-            `${emoji('warn')} Confirme d'abord le paiement avant de livrer (statut: \`${order.status}\`).`,
+            `${emoji('warn')} Confirm payment before delivering (status: \`${order.status}\`).`,
             config.warnColor,
           ),
         );
@@ -334,10 +334,10 @@ async function handleButton(interaction) {
       }
       try {
         await deliverToUser(interaction.client, orderId);
-        await interaction.reply(notice(`${emoji('check')} Livraison envoyée en MP.`));
+        await interaction.reply(notice(`${emoji('check')} Delivery sent by DM.`));
         await logShop(
           interaction.client,
-          `${emoji('delivery')} ${order.public_id} livrée en DM par <@${interaction.user.id}>`,
+          `${emoji('delivery')} ${order.public_id} delivered by DM by <@${interaction.user.id}>`,
         );
         await refreshOrderPanel(interaction.channel, orderId);
       } catch (e) {
@@ -348,9 +348,9 @@ async function handleButton(interaction) {
 
     if (action === 'cancel') {
       try {
-        orders.cancelOrder(orderId, `Annulée par admin ${interaction.user.tag}`);
+        orders.cancelOrder(orderId, `Cancelled by admin ${interaction.user.tag}`);
         await bumpShop(interaction.client);
-        await interaction.reply(notice('Commande annulée.'));
+        await interaction.reply(notice('Order cancelled.'));
         await refreshOrderPanel(interaction.channel, orderId);
       } catch (e) {
         return interaction.reply(notice(`${emoji('cross')} ${e.message}`, config.dangerColor));
@@ -362,7 +362,7 @@ async function handleButton(interaction) {
   // Admin dashboard
   if (id.startsWith('admin:')) {
     if (!isAdmin(interaction.member)) {
-      return interaction.reply(notice('Réservé aux admins.', config.dangerColor));
+      return interaction.reply(notice('Admins only.', config.dangerColor));
     }
     return handleAdminButton(interaction);
   }
@@ -462,13 +462,13 @@ async function handleSelect(interaction) {
 
   if (id === 'shop:select_product') {
     const product = products.getProduct(Number(value));
-    if (!product) return interaction.reply(notice('Produit introuvable.', config.dangerColor));
+    if (!product) return interaction.reply(notice('Product not found.', config.dangerColor));
     return safeUpdate(interaction, buildProductDetail(product));
   }
 
   if (id === 'cart:manage_item') {
     const product = products.getProduct(Number(value));
-    return safeUpdate(interaction, buildItemManagePanel(value, product?.name || 'Article'));
+    return safeUpdate(interaction, buildItemManagePanel(value, product?.name || 'Item'));
   }
 
   if (id === 'cart:pay_method') {
@@ -477,7 +477,7 @@ async function handleSelect(interaction) {
         const cryptos = require('../services/payments').getEnabledCryptos();
         if (!cryptos.length) {
           return interaction.reply(
-            notice(`${emoji('warn')} Litecoin non configuré (CRYPTO_MNEMONIC).`, config.warnColor),
+            notice(`${emoji('warn')} Litecoin not configured (CRYPTO_MNEMONIC).`, config.warnColor),
           );
         }
         // LTC uniquement — pas de sélection multi-coins
@@ -490,7 +490,7 @@ async function handleSelect(interaction) {
         );
         return interaction.reply(
           notice(
-            `${emoji('check')} Commande **${order.public_id}** créée (LTC).\nSalon: ${channel}`,
+            `${emoji('check')} Order **${order.public_id}** created (LTC).\nChannel: ${channel}`,
           ),
         );
       }
@@ -500,10 +500,10 @@ async function handleSelect(interaction) {
       await bumpShop(interaction.client);
       await logShop(
         interaction.client,
-        `${emoji('invoice')} Nouvelle commande **${order.public_id}** — <@${interaction.user.id}> — ${order.total.toFixed(2)}€ — ${value}`,
+        `${emoji('invoice')} New order **${order.public_id}** — <@${interaction.user.id}> — ${order.total.toFixed(2)}€ — ${value}`,
       );
       return interaction.reply(
-        notice(`${emoji('check')} Commande **${order.public_id}** créée.\nSalon: ${channel}`),
+        notice(`${emoji('check')} Order **${order.public_id}** created.\nChannel: ${channel}`),
       );
     } catch (e) {
       return interaction.reply(notice(`${emoji('cross')} ${e.message}`, config.dangerColor));
@@ -521,7 +521,7 @@ async function handleSelect(interaction) {
       );
       return interaction.reply(
         notice(
-          `${emoji('check')} Commande **${order.public_id}** créée (LTC).\nSalon: ${channel}`,
+          `${emoji('check')} Order **${order.public_id}** created (LTC).\nChannel: ${channel}`,
         ),
       );
     } catch (e) {
@@ -530,7 +530,7 @@ async function handleSelect(interaction) {
   }
 
   if (!isAdmin(interaction.member) && id.startsWith('admin:')) {
-    return interaction.reply(notice('Réservé aux admins.', config.dangerColor));
+    return interaction.reply(notice('Admins only.', config.dangerColor));
   }
 
   if (id === 'admin:product_manage') {
@@ -745,12 +745,12 @@ async function handleModal(interaction) {
     const orderId = Number(id.split(':')[2]);
     const order = orders.getOrder(orderId);
     if (!order || order.user_id !== interaction.user.id) {
-      return interaction.reply(notice('Commande introuvable.', config.dangerColor));
+      return interaction.reply(notice('Order not found.', config.dangerColor));
     }
     const rating = Number(interaction.fields.getTextInputValue('rating'));
     const comment = interaction.fields.getTextInputValue('comment').trim();
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-      return interaction.reply(notice('Note invalide (1-5).', config.dangerColor));
+      return interaction.reply(notice('Invalid rating (1-5).', config.dangerColor));
     }
     reviews.createReview({ orderId, userId: interaction.user.id, rating, comment });
     if (config.reviewsChannelId) {
@@ -760,7 +760,7 @@ async function handleModal(interaction) {
           components: [
             container(config.successColor).addTextDisplayComponents(
               text(
-                `# ${emoji('star')} Nouvel avis\n**${order.public_id}** — <@${interaction.user.id}>\nNote: **${rating}/5**\n${comment || '_Pas de commentaire_'}`,
+                `# ${emoji('star')} New review\n**${order.public_id}** — <@${interaction.user.id}>\nRating: **${rating}/5**\n${comment || '_No comment_'}`,
               ),
             ),
           ],
@@ -770,7 +770,7 @@ async function handleModal(interaction) {
         /* ignore */
       }
     }
-    return interaction.reply(notice(`${emoji('star')} Merci pour ton avis !`));
+    return interaction.reply(notice(`${emoji('star')} Thanks for your review!`));
   }
 
   if (id.startsWith('modal:manual_deliver:')) {
@@ -778,7 +778,7 @@ async function handleModal(interaction) {
     const orderId = Number(id.split(':')[2]);
     const payload = interaction.fields.getTextInputValue('payload').trim();
     let order = orders.getOrder(orderId);
-    if (!order) return interaction.reply(notice('Commande introuvable.', config.dangerColor));
+    if (!order) return interaction.reply(notice('Order not found.', config.dangerColor));
     if (['pending', 'awaiting_payment'].includes(order.status)) {
       orders.markPaid(orderId);
     }
@@ -789,7 +789,7 @@ async function handleModal(interaction) {
     }
     try {
       await deliverToUser(interaction.client, orderId);
-      await interaction.reply(notice(`${emoji('check')} Livraison manuelle envoyée en MP.`));
+      await interaction.reply(notice(`${emoji('check')} Manual delivery sent by DM.`));
       await refreshOrderPanel(interaction.channel, orderId);
     } catch (e) {
       return interaction.reply(notice(`${emoji('cross')} ${e.message}`, config.dangerColor));

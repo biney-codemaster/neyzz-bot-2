@@ -5,17 +5,17 @@ const TTL_MS = 60_000;
 
 async function getEurPrice(coinId) {
   const meta = COIN_META[coinId];
-  if (!meta) throw new Error(`Coin inconnu: ${coinId}`);
+  if (!meta) throw new Error(`Unknown coin: ${coinId}`);
 
   const cached = cache.get(coinId);
   if (cached && Date.now() - cached.at < TTL_MS) return cached.price;
 
   const url = `https://api.coingecko.com/api/v3/simple/price?ids=${meta.coingecko}&vs_currencies=eur`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Prix ${coinId} indisponible (${res.status})`);
+  if (!res.ok) throw new Error(`Price for ${coinId} unavailable (${res.status})`);
   const data = await res.json();
   const price = data?.[meta.coingecko]?.eur;
-  if (!price) throw new Error(`Prix EUR introuvable pour ${coinId}`);
+  if (!price) throw new Error(`EUR price not found for ${coinId}`);
   cache.set(coinId, { price, at: Date.now() });
   return price;
 }

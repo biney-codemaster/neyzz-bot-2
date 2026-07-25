@@ -110,7 +110,7 @@ function reserveKeys(productId, quantity, orderId) {
     .all(productId, quantity);
 
   if (keys.length < quantity) {
-    throw new Error('Stock insuffisant');
+    throw new Error('Insufficient stock');
   }
 
   const upd = getDb().prepare(
@@ -179,7 +179,7 @@ function decrementQuantity(productId, quantity) {
        WHERE id = ? AND stock_mode = 'quantity' AND quantity >= ?`,
     )
     .run(quantity, productId, quantity);
-  if (result.changes === 0) throw new Error('Stock insuffisant');
+  if (result.changes === 0) throw new Error('Insufficient stock');
 }
 
 module.exports = {

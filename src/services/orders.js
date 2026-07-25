@@ -49,21 +49,21 @@ function listOrders({ status, limit = 20 } = {}) {
 
 function createOrderFromCart(user, paymentMethod, cryptoCurrency = null) {
   const cart = cartService.getCart(user.id);
-  if (!cart.items.length) throw new Error('Ton panier est vide');
+  if (!cart.items.length) throw new Error('Your cart is empty');
   if (cart.couponError) throw new Error(cart.couponError);
 
   for (const item of cart.items) {
     if (!item.product?.active) {
-      throw new Error(`Produit indisponible: ${item.name}`);
+      throw new Error(`Product unavailable: ${item.name}`);
     }
     if (!item.product.inStock) {
-      throw new Error(`Rupture de stock: ${item.name}`);
+      throw new Error(`Out of stock: ${item.name}`);
     }
     if (
       item.product.stock_mode !== 'unlimited' &&
       item.quantity > item.product.available
     ) {
-      throw new Error(`Stock insuffisant pour ${item.name}`);
+      throw new Error(`Insufficient stock for ${item.name}`);
     }
   }
 
@@ -160,9 +160,9 @@ function markAwaitingPayment(orderId) {
 
 function cancelOrder(orderId, reason = '') {
   const order = getOrder(orderId);
-  if (!order) throw new Error('Commande introuvable');
+  if (!order) throw new Error('Order not found');
   if (['delivered', 'cancelled'].includes(order.status)) {
-    throw new Error('Cette commande ne peut plus être annulée');
+    throw new Error('This order can no longer be cancelled');
   }
 
   const tx = getDb().transaction(() => {
@@ -209,9 +209,9 @@ function markClosed(orderId) {
 
 function deliverOrder(orderId) {
   const order = getOrder(orderId);
-  if (!order) throw new Error('Commande introuvable');
+  if (!order) throw new Error('Order not found');
   if (!['paid', 'partial'].includes(order.status)) {
-    throw new Error('La commande doit être payée avant livraison');
+    throw new Error('The order must be paid before delivery');
   }
 
   const reserved = products.consumeReservedKeys(orderId);
@@ -261,7 +261,7 @@ function deliverOrder(orderId) {
 
         if (!content) {
           throw new Error(
-            `Aucun contenu à livrer pour « ${item.product_name} ». Ajoute des clés ou un contenu de livraison sur le produit.`,
+            `No delivery content for "${item.product_name}". Add keys or delivery content on the product.`,
           );
         }
 
@@ -301,17 +301,17 @@ function formatInvoice(order) {
     .join('\n');
 
   return [
-    `**Facture ${order.public_id}**`,
+    `**Invoice ${order.public_id}**`,
     '',
     lines,
     '',
-    `Sous-total : **${order.subtotal.toFixed(2)} ${config.currencySymbol}**`,
+    `Subtotal: **${order.subtotal.toFixed(2)} ${config.currencySymbol}**`,
     order.discount > 0
-      ? `Remise${order.coupon_code ? ` (${order.coupon_code})` : ''} : −**${order.discount.toFixed(2)} ${config.currencySymbol}**`
+      ? `Discount${order.coupon_code ? ` (${order.coupon_code})` : ''}: −**${order.discount.toFixed(2)} ${config.currencySymbol}**`
       : null,
-    `Total : **${order.total.toFixed(2)} ${config.currencySymbol}**`,
-    `Statut : \`${order.status}\``,
-    order.payment_method ? `Paiement : **${order.payment_method}**` : null,
+    `Total: **${order.total.toFixed(2)} ${config.currencySymbol}**`,
+    `Status: \`${order.status}\``,
+    order.payment_method ? `Payment: **${order.payment_method}**` : null,
   ]
     .filter(Boolean)
     .join('\n');

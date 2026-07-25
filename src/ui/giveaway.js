@@ -18,29 +18,29 @@ function toUnix(iso) {
 function formatConditions(g) {
   const lines = [];
   if (g.required_role_id) {
-    lines.push(`${emoji('staff')} Rôle requis : <@&${g.required_role_id}>`);
+    lines.push(`${emoji('staff')} Required role: <@&${g.required_role_id}>`);
   }
   if (g.min_account_days > 0) {
     lines.push(
-      `${emoji('user')} Compte Discord âgé d'au moins **${g.min_account_days}** jour(s)`,
+      `${emoji('user')} Discord account at least **${g.min_account_days}** day(s) old`,
     );
   }
   if (g.min_server_days > 0) {
     lines.push(
-      `${emoji('clock')} Membre du serveur depuis au moins **${g.min_server_days}** jour(s)`,
+      `${emoji('clock')} Member of this server for at least **${g.min_server_days}** day(s)`,
     );
   }
-  if (!lines.length) return `${emoji('success')} Aucune condition`;
+  if (!lines.length) return `${emoji('success')} No requirements`;
   return lines.join('\n');
 }
 
 function buildGiveawayPanel(g, { ended = false, cancelled = false } = {}) {
   const endsUnix = toUnix(g.ends_at);
   const statusLabel = cancelled
-    ? `${emoji('cross')} Annulé`
+    ? `${emoji('cross')} Cancelled`
     : ended
-      ? `${emoji('party')} Terminé`
-      : `${emoji('pending')} En cours`;
+      ? `${emoji('party')} Ended`
+      : `${emoji('pending')} Running`;
 
   const c = container()
     .addTextDisplayComponents(
@@ -51,18 +51,18 @@ function buildGiveawayPanel(g, { ended = false, cancelled = false } = {}) {
     .addTextDisplayComponents(
       text(
         [
-          `${emoji('trophy')} Gagnants : **${g.winners_count}**`,
-          `${emoji('clock')} Fin : <t:${endsUnix}:F> (<t:${endsUnix}:R>)`,
-          `${emoji('user')} Participants : **${g.entriesCount ?? 0}**`,
-          `${emoji('staff')} Organisé par : <@${g.host_id}>`,
+          `${emoji('trophy')} Winners: **${g.winners_count}**`,
+          `${emoji('clock')} Ends: <t:${endsUnix}:F> (<t:${endsUnix}:R>)`,
+          `${emoji('user')} Entries: **${g.entriesCount ?? 0}**`,
+          `${emoji('staff')} Hosted by: <@${g.host_id}>`,
           `${statusLabel}`,
-          `ID : \`${g.id}\``,
+          `ID: \`${g.id}\``,
         ].join('\n'),
       ),
     )
     .addSeparatorComponents(separator())
     .addTextDisplayComponents(
-      text(`### Conditions\n${formatConditions(g)}`),
+      text(`### Requirements\n${formatConditions(g)}`),
     );
 
   const components = [c];
@@ -70,8 +70,8 @@ function buildGiveawayPanel(g, { ended = false, cancelled = false } = {}) {
   if (!ended && !cancelled) {
     components.push(
       row(
-        btn(`giveaway:join:${g.id}`, 'Participer', ButtonStyle.Success, 'party'),
-        btn(`giveaway:leave:${g.id}`, 'Quitter', ButtonStyle.Secondary, 'leave'),
+        btn(`giveaway:join:${g.id}`, 'Enter', ButtonStyle.Success, 'party'),
+        btn(`giveaway:leave:${g.id}`, 'Leave', ButtonStyle.Secondary, 'leave'),
       ),
     );
   }
@@ -82,19 +82,19 @@ function buildGiveawayPanel(g, { ended = false, cancelled = false } = {}) {
 function buildWinnersMessage(g, winners) {
   const mentions = winners.length
     ? winners.map((id) => `<@${id}>`).join(', ')
-    : '_Aucun gagnant (pas assez de participants éligibles)._';
+    : '_No winners (not enough eligible entries)._';
 
   const c = container(config.successColor || config.accentColor)
     .addTextDisplayComponents(
-      text(`# ${emoji('party')} Tirage terminé`),
+      text(`# ${emoji('party')} Giveaway ended`),
       text(`**${g.prize}**`),
     )
     .addSeparatorComponents(separator())
     .addTextDisplayComponents(
       text(
         [
-          `${emoji('trophy')} Gagnant(s) : ${mentions}`,
-          `${emoji('user')} Participants : **${g.entriesCount ?? 0}**`,
+          `${emoji('trophy')} Winner(s): ${mentions}`,
+          `${emoji('user')} Entries: **${g.entriesCount ?? 0}**`,
           `Giveaway #\`${g.id}\``,
         ].join('\n'),
       ),
@@ -106,7 +106,7 @@ function buildWinnersMessage(g, winners) {
 function buildRerollMessage(g, winners) {
   const mentions = winners.length
     ? winners.map((id) => `<@${id}>`).join(', ')
-    : '_Aucun nouveau gagnant éligible._';
+    : '_No new eligible winners._';
 
   const c = container(config.accentColor)
     .addTextDisplayComponents(
@@ -117,7 +117,7 @@ function buildRerollMessage(g, winners) {
     .addTextDisplayComponents(
       text(
         [
-          `${emoji('trophy')} Nouveau(x) gagnant(s) : ${mentions}`,
+          `${emoji('trophy')} New winner(s): ${mentions}`,
           `Giveaway #\`${g.id}\``,
         ].join('\n'),
       ),

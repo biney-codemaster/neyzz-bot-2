@@ -22,13 +22,13 @@ async function fetchMemberSafe(guild, userId) {
  */
 function checkEligibility(g, member) {
   if (!member) {
-    return { ok: false, reason: 'Tu dois être membre du serveur pour participer.' };
+    return { ok: false, reason: 'You must be a server member to enter.' };
   }
 
   if (g.required_role_id && !member.roles.cache.has(g.required_role_id)) {
     return {
       ok: false,
-      reason: `Il te faut le rôle <@&${g.required_role_id}> pour participer.`,
+      reason: `You need the role <@&${g.required_role_id}> to enter.`,
     };
   }
 
@@ -37,7 +37,7 @@ function checkEligibility(g, member) {
     if (ageMs < g.min_account_days * DAY_MS) {
       return {
         ok: false,
-        reason: `Ton compte Discord doit avoir au moins **${g.min_account_days}** jour(s).`,
+        reason: `Your Discord account must be at least **${g.min_account_days}** day(s) old.`,
       };
     }
   }
@@ -48,7 +48,7 @@ function checkEligibility(g, member) {
     if (ageMs < g.min_server_days * DAY_MS) {
       return {
         ok: false,
-        reason: `Tu dois être sur le serveur depuis au moins **${g.min_server_days}** jour(s).`,
+        reason: `You must have been in this server for at least **${g.min_server_days}** day(s).`,
       };
     }
   }
@@ -141,13 +141,13 @@ function pickFromList(ids, count) {
  */
 async function rerollGiveaway(client, giveawayId, count = null) {
   const g = giveaways.getGiveaway(giveawayId);
-  if (!g) return { ok: false, error: 'Giveaway introuvable.' };
+  if (!g) return { ok: false, error: 'Giveaway not found.' };
   if (g.status !== 'ended') {
-    return { ok: false, error: 'Le giveaway doit être terminé pour reroll.' };
+    return { ok: false, error: 'The giveaway must be ended to reroll.' };
   }
 
   const guild = await client.guilds.fetch(g.guild_id).catch(() => null);
-  if (!guild) return { ok: false, error: 'Serveur introuvable.' };
+  if (!guild) return { ok: false, error: 'Server not found.' };
 
   const exclude = new Set(g.winners || []);
   const entryIds = giveaways
@@ -160,7 +160,7 @@ async function rerollGiveaway(client, giveawayId, count = null) {
   const winners = pickFromList(eligible, n);
 
   if (!winners.length) {
-    return { ok: false, error: 'Aucun participant éligible pour un reroll.' };
+    return { ok: false, error: 'No eligible participants for a reroll.' };
   }
 
   const merged = [...(g.winners || []), ...winners];
@@ -199,7 +199,7 @@ function startGiveawayScheduler(client, { intervalMs = 15_000 } = {}) {
       for (const g of due) {
         try {
           await endGiveaway(client, g.id);
-          console.log(`${emoji('gift')} Giveaway #${g.id} tiré`);
+          console.log(`${emoji('gift')} Giveaway #${g.id} drawn`);
         } catch (e) {
           console.warn(`[giveaway] end #${g.id}:`, e.message);
         }
@@ -211,7 +211,7 @@ function startGiveawayScheduler(client, { intervalMs = 15_000 } = {}) {
 
   timer = setInterval(tick, intervalMs);
   tick();
-  console.log(`${emoji('gift')} Scheduler giveaways démarré`);
+  console.log(`${emoji('gift')} Giveaway scheduler started`);
   return timer;
 }
 

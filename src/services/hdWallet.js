@@ -41,7 +41,7 @@ function getRoot() {
   if (rootKey) return rootKey;
   if (!isHdConfigured()) {
     throw new Error(
-      'CRYPTO_MNEMONIC manquant ou invalide. Mets ta seed Exodus (12 mots) dans .env',
+      'CRYPTO_MNEMONIC missing or invalid. Put your Exodus seed (12 words) in .env',
     );
   }
   const seed = bip39.mnemonicToSeedSync(config.crypto.mnemonic);
@@ -55,10 +55,10 @@ function resetRootCache() {
 
 function deriveNode(coinId, index) {
   const meta = COIN_META[coinId];
-  if (!meta) throw new Error(`Coin inconnu: ${coinId} (seul LTC est supporté)`);
+  if (!meta) throw new Error(`Unknown coin: ${coinId} (only LTC is supported)`);
   const path = `${meta.pathPrefix}/${index}`;
   const node = getRoot().derive(path);
-  if (!node.privateKey) throw new Error(`Impossible de dériver ${path}`);
+  if (!node.privateKey) throw new Error(`Could not derive ${path}`);
   return { node, path, meta };
 }
 
@@ -106,7 +106,7 @@ function generateMnemonic() {
 }
 
 function verifyPaymentAddress(row) {
-  if (!row) return { ok: false, error: 'Adresse introuvable' };
+  if (!row) return { ok: false, error: 'Address not found' };
   try {
     const derived = deriveAddress('ltc', row.address_index);
     const match = derived.address.toLowerCase() === String(row.address).toLowerCase();
@@ -117,7 +117,7 @@ function verifyPaymentAddress(row) {
       path: derived.path,
       error: match
         ? null
-        : 'La seed actuelle ne correspond PAS à cette adresse (mauvaise CRYPTO_MNEMONIC ?)',
+        : 'Current seed does NOT match this address (wrong CRYPTO_MNEMONIC?)',
     };
   } catch (e) {
     return { ok: false, error: e.message };

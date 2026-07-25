@@ -15,12 +15,12 @@ const payments = require('../services/payments');
 
 function statusLabel(status) {
   const map = {
-    pending: `${emoji('pending')} En attente`,
-    awaiting_payment: `${emoji('clock')} Paiement en cours`,
-    paid: `${emoji('check')} Payée`,
-    delivered: `${emoji('delivery')} Livrée`,
-    cancelled: `${emoji('cross')} Annulée`,
-    partial: `${emoji('warn')} Partielle`,
+    pending: `${emoji('pending')} Pending`,
+    awaiting_payment: `${emoji('clock')} Awaiting payment`,
+    paid: `${emoji('check')} Paid`,
+    delivered: `${emoji('delivery')} Delivered`,
+    cancelled: `${emoji('cross')} Cancelled`,
+    partial: `${emoji('warn')} Partial`,
   };
   return map[status] || status;
 }
@@ -30,13 +30,13 @@ function buildOrderChannelPanel(order, paymentInfo = null) {
   const invoice = orders.formatInvoice(order);
   const c = container()
     .addTextDisplayComponents(
-      text(`# ${emoji('invoice')} Commande ${order.public_id}`),
+      text(`# ${emoji('invoice')} Order ${order.public_id}`),
       text(
         [
-          `${emoji('user')} Client : <@${order.user_id}>`,
-          `Statut : ${statusLabel(order.status)}`,
+          `${emoji('user')} Customer: <@${order.user_id}>`,
+          `Status: ${statusLabel(order.status)}`,
           order.payment_method
-            ? `Moyen : **${order.payment_method}${order.crypto_currency ? ` (${order.crypto_currency.toUpperCase()})` : ''}**`
+            ? `Method: **${order.payment_method}${order.crypto_currency ? ` (${order.crypto_currency.toUpperCase()})` : ''}**`
             : null,
         ]
           .filter(Boolean)
@@ -54,7 +54,7 @@ function buildOrderChannelPanel(order, paymentInfo = null) {
       text(paymentInfo.instructions),
     ];
     if (paymentInfo.address) {
-      paymentLines.push(text(`${emoji('copy')} Adresse : \`${paymentInfo.address}\``));
+      paymentLines.push(text(`${emoji('copy')} Address: \`${paymentInfo.address}\``));
     } else if (paymentInfo.link) {
       paymentLines.push(text(`${emoji('link')} ${paymentInfo.link}`));
     } else if (paymentInfo.email) {
@@ -65,22 +65,20 @@ function buildOrderChannelPanel(order, paymentInfo = null) {
     );
   }
 
-  // Boutons client
   const customerBtns = [];
   if (['pending', 'awaiting_payment'].includes(order.status)) {
-    // Crypto = détection auto → pas de "J'ai payé"
     if (!isCrypto) {
       customerBtns.push(
-        btn(`order:paid:${order.id}`, 'J\'ai payé', ButtonStyle.Success, 'check'),
+        btn(`order:paid:${order.id}`, 'I paid', ButtonStyle.Success, 'check'),
       );
     }
     customerBtns.push(
-      btn(`order:cancel:${order.id}`, 'Annuler', ButtonStyle.Danger, 'cross'),
+      btn(`order:cancel:${order.id}`, 'Cancel', ButtonStyle.Danger, 'cross'),
     );
   }
   if (order.status === 'delivered') {
     customerBtns.push(
-      btn(`order:review:${order.id}`, 'Laisser un avis', ButtonStyle.Primary, 'star'),
+      btn(`order:review:${order.id}`, 'Leave a review', ButtonStyle.Primary, 'star'),
     );
   }
   if (customerBtns.length) components.push(row(...customerBtns.slice(0, 5)));
@@ -89,43 +87,41 @@ function buildOrderChannelPanel(order, paymentInfo = null) {
     components.push(
       container(config.accentColor).addTextDisplayComponents(
         text(
-          `${emoji('crypto')} Paiement surveillé automatiquement — pas besoin de cliquer quoi que ce soit.\nLivraison en **MP** dès confirmation réseau.`,
+          `${emoji('crypto')} Payment is watched automatically — no button needed.\nDelivery by **DM** once the network confirms.`,
         ),
       ),
     );
   }
 
-  // Admin
   const adminBtns = [];
   if (['pending', 'awaiting_payment'].includes(order.status)) {
     if (!isCrypto) {
       adminBtns.push(
-        btn(`staff:confirm_pay:${order.id}`, 'Confirmer paiement', ButtonStyle.Success, 'money'),
+        btn(`staff:confirm_pay:${order.id}`, 'Confirm payment', ButtonStyle.Success, 'money'),
       );
     }
     adminBtns.push(
-      btn(`staff:cancel:${order.id}`, 'Annuler', ButtonStyle.Danger, 'trash'),
+      btn(`staff:cancel:${order.id}`, 'Cancel', ButtonStyle.Danger, 'trash'),
     );
   } else if (['paid', 'partial'].includes(order.status)) {
     adminBtns.push(
-      btn(`staff:deliver:${order.id}`, 'Livrer (MP)', ButtonStyle.Primary, 'delivery'),
-      btn(`staff:cancel:${order.id}`, 'Annuler', ButtonStyle.Danger, 'trash'),
+      btn(`staff:deliver:${order.id}`, 'Deliver (DM)', ButtonStyle.Primary, 'delivery'),
+      btn(`staff:cancel:${order.id}`, 'Cancel', ButtonStyle.Danger, 'trash'),
     );
   }
 
   if (adminBtns.length) {
     components.push(
       container(config.accentColor).addTextDisplayComponents(
-        text(`${emoji('admin')} **Zone admin**`),
+        text(`${emoji('admin')} **Admin zone**`),
       ),
       row(...adminBtns.slice(0, 5)),
     );
   }
 
-  // Un seul bouton Fermer (évite custom_id dupliqué)
   if (['delivered', 'cancelled'].includes(order.status) && !order.closed_at) {
     components.push(
-      row(btn(`order:close:${order.id}`, 'Fermer + transcript', ButtonStyle.Danger, 'lock')),
+      row(btn(`order:close:${order.id}`, 'Close + transcript', ButtonStyle.Danger, 'lock')),
     );
   }
 
@@ -144,16 +140,16 @@ function buildDeliveryMessage(order, deliveries) {
     .filter((d) => d.manual)
     .map(
       (d) =>
-        `${emoji('manual')} **${d.item.product_name}** × ${d.item.quantity} — en attente de livraison manuelle`,
+        `${emoji('manual')} **${d.item.product_name}** × ${d.item.quantity} — awaiting manual delivery`,
     );
 
   const c = container(config.successColor)
     .addTextDisplayComponents(
-      text(`# ${emoji('success')} Livraison — ${order.public_id}`),
+      text(`# ${emoji('success')} Delivery — ${order.public_id}`),
       text(
         autoLines.length || manualLines.length
           ? [...autoLines, ...manualLines].join('\n\n')
-          : 'Aucun contenu à livrer.',
+          : 'Nothing to deliver.',
       ),
     );
 
@@ -161,8 +157,8 @@ function buildDeliveryMessage(order, deliveries) {
   if (order.status === 'delivered' && !order.closed_at) {
     components.push(
       row(
-        btn(`order:review:${order.id}`, 'Laisser un avis', ButtonStyle.Primary, 'star'),
-        btn(`order:close:${order.id}`, 'Fermer + transcript', ButtonStyle.Danger, 'lock'),
+        btn(`order:review:${order.id}`, 'Leave a review', ButtonStyle.Primary, 'star'),
+        btn(`order:close:${order.id}`, 'Close + transcript', ButtonStyle.Danger, 'lock'),
       ),
     );
   }

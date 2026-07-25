@@ -27,8 +27,8 @@ function sanitizeChannelName(raw) {
 module.exports = [
   {
     data: new SlashCommandBuilder()
-      .setName('panier')
-      .setDescription('Affiche ton panier'),
+      .setName('cart')
+      .setDescription('Show your cart'),
     async execute(interaction) {
       const c = cart.getCart(interaction.user.id);
       await interaction.reply({
@@ -40,12 +40,12 @@ module.exports = [
   {
     data: new SlashCommandBuilder()
       .setName('admin')
-      .setDescription('Dashboard admin de la boutique')
+      .setDescription('Shop admin dashboard')
       .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     async execute(interaction) {
       if (!isAdmin(interaction.member)) {
         return interaction.reply(
-          notice(`${emoji('cross')} Accès refusé.`, config.dangerColor),
+          notice(`${emoji('cross')} Access denied.`, config.dangerColor),
         );
       }
       await interaction.reply({
@@ -57,12 +57,12 @@ module.exports = [
   {
     data: new SlashCommandBuilder()
       .setName('rename')
-      .setDescription('Renomme le ticket de commande (admin, dans le salon)')
+      .setDescription('Rename the order ticket channel (admin, in the channel)')
       .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
       .addStringOption((o) =>
         o
-          .setName('nom')
-          .setDescription('Nouveau nom du salon')
+          .setName('name')
+          .setDescription('New channel name')
           .setRequired(true)
           .setMinLength(1)
           .setMaxLength(100),
@@ -70,7 +70,7 @@ module.exports = [
     async execute(interaction) {
       if (!isAdmin(interaction.member)) {
         return interaction.reply(
-          notice(`${emoji('cross')} Accès refusé — admin uniquement.`, config.dangerColor),
+          notice(`${emoji('cross')} Access denied — admin only.`, config.dangerColor),
         );
       }
 
@@ -78,7 +78,7 @@ module.exports = [
       if (!order) {
         return interaction.reply(
           notice(
-            `${emoji('cross')} Cette commande ne fonctionne que dans un ticket de commande.`,
+            `${emoji('cross')} This command only works in an order ticket channel.`,
             config.dangerColor,
           ),
         );
@@ -86,15 +86,15 @@ module.exports = [
 
       if (order.closed_at) {
         return interaction.reply(
-          notice(`${emoji('cross')} Cette commande est déjà fermée.`, config.dangerColor),
+          notice(`${emoji('cross')} This order is already closed.`, config.dangerColor),
         );
       }
 
-      const name = sanitizeChannelName(interaction.options.getString('nom', true));
+      const name = sanitizeChannelName(interaction.options.getString('name', true));
       if (!name || name.length < 1) {
         return interaction.reply(
           notice(
-            `${emoji('cross')} Nom invalide. Utilise des lettres, chiffres ou tirets.`,
+            `${emoji('cross')} Invalid name. Use letters, numbers, or hyphens.`,
             config.dangerColor,
           ),
         );
@@ -102,17 +102,17 @@ module.exports = [
 
       try {
         const oldName = interaction.channel.name;
-        await interaction.channel.setName(name, `Rename par ${interaction.user.tag}`);
+        await interaction.channel.setName(name, `Rename by ${interaction.user.tag}`);
         return interaction.reply(
           notice(
-            `${emoji('edit')} Salon renommé : \`${oldName}\` → \`${name}\``,
+            `${emoji('edit')} Channel renamed: \`${oldName}\` → \`${name}\``,
             config.successColor,
           ),
         );
       } catch (e) {
         return interaction.reply(
           notice(
-            `${emoji('cross')} Impossible de renommer : ${e.message}`,
+            `${emoji('cross')} Could not rename: ${e.message}`,
             config.dangerColor,
           ),
         );
@@ -122,18 +122,18 @@ module.exports = [
   {
     data: new SlashCommandBuilder()
       .setName('renew')
-      .setDescription('Recrée ce salon au même endroit (admin)')
+      .setDescription('Recreate this channel in the same place (admin)')
       .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     async execute(interaction) {
       if (!isAdmin(interaction.member)) {
         return interaction.reply(
-          notice(`${emoji('cross')} Accès refusé — admin uniquement.`, config.dangerColor),
+          notice(`${emoji('cross')} Access denied — admin only.`, config.dangerColor),
         );
       }
 
       if (!interaction.guild || !interaction.channel) {
         return interaction.reply(
-          notice(`${emoji('cross')} Utilisable uniquement sur un serveur.`, config.dangerColor),
+          notice(`${emoji('cross')} Guild channels only.`, config.dangerColor),
         );
       }
 
@@ -145,7 +145,7 @@ module.exports = [
         });
         await interaction.editReply(
           notice(
-            `${emoji('refresh')} Salon renouvelé : ${newChannel}`,
+            `${emoji('refresh')} Channel renewed: ${newChannel}`,
             config.successColor,
           ),
         );
@@ -154,7 +154,7 @@ module.exports = [
       } catch (e) {
         return interaction.editReply(
           notice(
-            `${emoji('cross')} Impossible de renouveler : ${e.message}`,
+            `${emoji('cross')} Could not renew: ${e.message}`,
             config.dangerColor,
           ),
         );
