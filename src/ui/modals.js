@@ -76,10 +76,14 @@ function couponCreateModal() {
     );
 }
 
-function couponCartModal() {
-  return modal('modal:buy_coupon', 'Promo code')
+function buyCouponModal(productId, quantity, currentCode = '') {
+  return modal(`modal:buy_coupon:${productId}:${quantity}`, 'Promo code')
     .addComponents(
-      input('code', 'Promo code', { placeholder: 'WELCOME10', required: false }),
+      input('code', 'Promo code', {
+        placeholder: 'WELCOME10',
+        required: false,
+        value: currentCode || undefined,
+      }),
     );
 }
 
@@ -152,7 +156,7 @@ module.exports = {
   keysModal,
   productPriceModal,
   couponCreateModal,
-  couponCartModal,
+  buyCouponModal,
   buyQuantityModal,
   paypalModal,
   emojiModal,

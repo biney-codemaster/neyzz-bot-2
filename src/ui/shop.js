@@ -116,27 +116,90 @@ function buildProductDetail(product) {
   };
 }
 
-function buildBuyConfirm({ product, quantity, total }) {
+function encodeCoupon(code) {
+  if (!code) return 'none';
+  return String(code)
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9_-]/g, '')
+    .slice(0, 32) || 'none';
+}
+
+function decodeCoupon(token) {
+  if (!token || token === 'none') return null;
+  return token;
+}
+
+function buildBuyConfirm({ product, quantity, couponCode = null }) {
+  const coupons = require('../services/coupons');
+  const subtotal = product.price * quantity;
+  let discount = 0;
+  let couponError = null;
+  let appliedCode = null;
+
+  if (couponCode) {
+    const check = coupons.applyCoupon(couponCode, subtotal);
+    if (check.ok) {
+      discount = check.discount;
+      appliedCode = check.coupon.code;
+    } else {
+      couponError = check.error;
+    }
+  }
+
+  const total = Math.max(0, subtotal - discount);
+  const couponToken = encodeCoupon(appliedCode);
   const methods = payments.enabledPaymentMethods();
+
+  const lines = [
+    `**${product.name}** × **${quantity}**`,
+    `${emoji('money')} Subtotal: **${money(subtotal)}**`,
+  ];
+  if (appliedCode) {
+    lines.push(
+      `${emoji('coupon')} Coupon \`${appliedCode}\`: −**${money(discount)}**`,
+    );
+  } else if (couponError) {
+    lines.push(`${emoji('warn')} ${couponError}`);
+  } else {
+    lines.push(`${emoji('coupon')} No promo code`);
+  }
+  lines.push(`${emoji('money')} **Total: ${money(total)}**`);
+  lines.push('');
+  lines.push('Apply a coupon if you have one, then choose payment.');
+
   const c = container()
     .addTextDisplayComponents(
       text(`# ${emoji('invoice')} Confirm order`),
-      text(
-        [
-          `**${product.name}** × **${quantity}**`,
-          `${emoji('money')} Total: **${money(total)}**`,
-          '',
-          'Choose a payment method to continue.',
-        ].join('\n'),
-      ),
+      text(lines.join('\n')),
     );
 
   const components = [c];
 
+  const couponBtns = [
+    btn(
+      `buy:coupon:${product.id}:${quantity}:${couponToken}`,
+      appliedCode ? 'Change coupon' : 'Promo code',
+      ButtonStyle.Secondary,
+      'coupon',
+    ),
+  ];
+  if (appliedCode) {
+    couponBtns.push(
+      btn(
+        `buy:coupon_clear:${product.id}:${quantity}`,
+        'Remove coupon',
+        ButtonStyle.Danger,
+        'trash',
+      ),
+    );
+  }
+  components.push(row(...couponBtns));
+
   if (methods.length) {
     components.push(
       select(
-        `buy:checkout:${product.id}:${quantity}`,
+        `buy:checkout:${product.id}:${quantity}:${couponToken}`,
         `${emoji('money')} Pay with…`,
         methods.map((m) => ({
           label: m.label,
@@ -168,4 +231,6 @@ module.exports = {
   buildShopPanel,
   buildProductDetail,
   buildBuyConfirm,
+  encodeCoupon,
+  decodeCoupon,
 };

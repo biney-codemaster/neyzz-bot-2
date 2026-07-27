@@ -10,7 +10,7 @@ const { closeOrderWithTranscript } = require('../services/transcript');
 const shopPanels = require('../services/shopPanels');
 const giveaways = require('../services/giveaways');
 const giveawayRunner = require('../services/giveawayRunner');
-const { buildShopPanel, buildProductDetail, buildBuyConfirm } = require('../ui/shop');
+const { buildShopPanel, buildProductDetail, buildBuyConfirm, decodeCoupon } = require('../ui/shop');
 
 async function bumpShop(client) {
   try {
@@ -141,6 +141,23 @@ async function handleButton(interaction) {
     }
     const maxQty = product.stock_mode === 'unlimited' ? 25 : Math.min(25, product.available);
     return interaction.showModal(modals.buyQuantityModal(productId, maxQty));
+  }
+
+  if (id.startsWith('buy:coupon_clear:')) {
+    const [, , productIdRaw, qtyRaw] = id.split(':');
+    const product = products.getProduct(Number(productIdRaw));
+    if (!product) return interaction.reply(notice('Product not found.', config.dangerColor));
+    const quantity = parseQuantity(qtyRaw, 1);
+    return safeUpdate(interaction, buildBuyConfirm({ product, quantity, couponCode: null }));
+  }
+
+  if (id.startsWith('buy:coupon:')) {
+    const [, , productIdRaw, qtyRaw, couponToken] = id.split(':');
+    const quantity = parseQuantity(qtyRaw, 1);
+    const current = decodeCoupon(couponToken);
+    return interaction.showModal(
+      modals.buyCouponModal(Number(productIdRaw), quantity, current || ''),
+    );
   }
 
   // Orders — customer
@@ -442,9 +459,10 @@ async function handleSelect(interaction) {
   }
 
   if (id.startsWith('buy:checkout:')) {
-    const [, , productIdRaw, qtyRaw] = id.split(':');
+    const [, , productIdRaw, qtyRaw, couponToken] = id.split(':');
     const productId = Number(productIdRaw);
     const quantity = parseQuantity(qtyRaw, 1);
+    const couponCode = decodeCoupon(couponToken);
     try {
       const paymentMethod = value === 'crypto' ? 'crypto' : value;
       const cryptoCurrency = paymentMethod === 'crypto' ? 'ltc' : null;
@@ -461,13 +479,14 @@ async function handleSelect(interaction) {
         items: [{ productId, quantity }],
         paymentMethod,
         cryptoCurrency,
+        couponCode,
       });
       const channel = await createOrderChannel(interaction.guild, interaction.user, order);
       await bumpShop(interaction.client);
       const label = paymentMethod === 'crypto' ? 'LTC' : paymentMethod;
       await logShop(
         interaction.client,
-        `${emoji('invoice')} **${order.public_id}** ${label} ×${quantity} — <@${interaction.user.id}> — ${order.total.toFixed(2)}€`,
+        `${emoji('invoice')} **${order.public_id}** ${label} ×${quantity}${couponCode ? ` (${couponCode})` : ''} — <@${interaction.user.id}> — ${order.total.toFixed(2)}€`,
       );
       return interaction.reply(
         notice(
@@ -508,9 +527,30 @@ async function handleModal(interaction) {
         notice(`${emoji('cross')} Only **${maxQty}** left in stock.`, config.dangerColor),
       );
     }
-    const total = product.price * quantity;
     return interaction.reply(
-      buildBuyConfirm({ product, quantity, total }),
+      buildBuyConfirm({ product, quantity, couponCode: null }),
+    );
+  }
+
+  if (id.startsWith('modal:buy_coupon:')) {
+    const [, , productIdRaw, qtyRaw] = id.split(':');
+    const product = products.getProduct(Number(productIdRaw));
+    if (!product || !product.active) {
+      return interaction.reply(notice('Product not found.', config.dangerColor));
+    }
+    const quantity = parseQuantity(qtyRaw, 1);
+    const code = interaction.fields.getTextInputValue('code').trim().toUpperCase() || null;
+    if (code) {
+      const subtotal = product.price * quantity;
+      const check = coupons.applyCoupon(code, subtotal);
+      if (!check.ok) {
+        return interaction.reply(
+          notice(`${emoji('cross')} ${check.error}`, config.dangerColor),
+        );
+      }
+    }
+    return interaction.reply(
+      buildBuyConfirm({ product, quantity, couponCode: code }),
     );
   }
 
