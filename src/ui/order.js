@@ -27,38 +27,37 @@ function statusLabel(status) {
 
 function buildOrderChannelPanel(order, paymentInfo = null) {
   const isCrypto = order.payment_method === 'crypto';
-  const invoice = orders.formatInvoice(order);
+  const item = order.items?.[0];
+  const qty = order.items?.reduce((s, i) => s + i.quantity, 0) || 0;
+
   const c = container()
     .addTextDisplayComponents(
-      text(`# ${emoji('invoice')} Order ${order.public_id}`),
+      text(`# ${emoji('invoice')} ${order.public_id}`),
       text(
         [
-          `${emoji('user')} Customer: <@${order.user_id}>`,
-          `Status: ${statusLabel(order.status)}`,
-          order.payment_method
-            ? `Method: **${order.payment_method}${order.crypto_currency ? ` (${order.crypto_currency.toUpperCase()})` : ''}**`
-            : null,
+          `<@${order.user_id}>`,
+          item ? `**${item.product_name}** × ${qty}` : null,
+          `${emoji('money')} **${money(order.total)}**`,
+          statusLabel(order.status),
         ]
           .filter(Boolean)
           .join('\n'),
       ),
-    )
-    .addSeparatorComponents(separator())
-    .addTextDisplayComponents(text(invoice));
+    );
 
   const components = [c];
 
   if (paymentInfo && ['pending', 'awaiting_payment'].includes(order.status)) {
     const paymentLines = [
-      text(`# ${emoji(paymentInfo.method === 'paypal' ? 'paypal' : 'crypto')} ${paymentInfo.title}`),
+      text(`## ${emoji(paymentInfo.method === 'paypal' ? 'paypal' : 'ltc')} ${paymentInfo.title}`),
       text(paymentInfo.instructions),
     ];
     if (paymentInfo.address) {
-      paymentLines.push(text(`${emoji('copy')} Address: \`${paymentInfo.address}\``));
+      paymentLines.push(text(`\`${paymentInfo.address}\``));
     } else if (paymentInfo.link) {
-      paymentLines.push(text(`${emoji('link')} ${paymentInfo.link}`));
+      paymentLines.push(text(paymentInfo.link));
     } else if (paymentInfo.email) {
-      paymentLines.push(text(`${emoji('paypal')} ${paymentInfo.email}`));
+      paymentLines.push(text(`\`${paymentInfo.email}\``));
     }
     components.push(
       container(config.warnColor).addTextDisplayComponents(...paymentLines),
@@ -87,7 +86,7 @@ function buildOrderChannelPanel(order, paymentInfo = null) {
     components.push(
       container(config.accentColor).addTextDisplayComponents(
         text(
-          `${emoji('crypto')} Payment is watched automatically — no button needed.\nDelivery by **DM** once the network confirms.`,
+          `${emoji('crypto')} Auto-watched — delivery by **DM** when confirmed.`,
         ),
       ),
     );
@@ -113,7 +112,7 @@ function buildOrderChannelPanel(order, paymentInfo = null) {
   if (adminBtns.length) {
     components.push(
       container(config.accentColor).addTextDisplayComponents(
-        text(`${emoji('admin')} **Admin zone**`),
+        text(`${emoji('admin')} **Admin**`),
       ),
       row(...adminBtns.slice(0, 5)),
     );
@@ -128,30 +127,12 @@ function buildOrderChannelPanel(order, paymentInfo = null) {
   return { components, flags: V2 };
 }
 
-function buildDeliveryMessage(order, deliveries) {
-  const autoLines = deliveries
-    .filter((d) => d.payload)
-    .map(
-      (d) =>
-        `### ${emoji('key')} ${d.item.product_name} × ${d.item.quantity}\n\`\`\`\n${d.payload}\n\`\`\``,
-    );
-
-  const manualLines = deliveries
-    .filter((d) => d.manual)
-    .map(
-      (d) =>
-        `${emoji('manual')} **${d.item.product_name}** × ${d.item.quantity} — awaiting manual delivery`,
-    );
-
-  const c = container(config.successColor)
-    .addTextDisplayComponents(
-      text(`# ${emoji('success')} Delivery — ${order.public_id}`),
-      text(
-        autoLines.length || manualLines.length
-          ? [...autoLines, ...manualLines].join('\n\n')
-          : 'Nothing to deliver.',
-      ),
-    );
+/** V2 follow-up AFTER plain gift-link messages */
+function buildDeliveryFollowUp(order) {
+  const c = container(config.successColor).addTextDisplayComponents(
+    text(`# ${emoji('success')} Delivered`),
+    text(`Order **${order.public_id}** — gift link(s) sent above.`),
+  );
 
   const components = [c];
   if (order.status === 'delivered' && !order.closed_at) {
@@ -163,6 +144,11 @@ function buildDeliveryMessage(order, deliveries) {
     );
   }
   return { components, flags: V2 };
+}
+
+/** @deprecated use buildDeliveryFollowUp + plain link messages */
+function buildDeliveryMessage(order, _deliveries) {
+  return buildDeliveryFollowUp(order);
 }
 
 function buildPaymentInfoForOrder(order) {
@@ -178,6 +164,7 @@ function buildPaymentInfoForOrder(order) {
 module.exports = {
   buildOrderChannelPanel,
   buildDeliveryMessage,
+  buildDeliveryFollowUp,
   buildPaymentInfoForOrder,
   statusLabel,
   money,

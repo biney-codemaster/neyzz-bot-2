@@ -1,70 +1,51 @@
-# neyzz-bot-2 — Discord shop bot (SellAuth-style)
+# neyzz-bot-2 — Discord Nitro shop
 
-Discord.js **Components V2** bot: cart, PayPal, Litecoin HD wallet (unique address per payment), delivery **always by DM**.
+Discord.js **Components V2** bot specialized for **Discord Nitro 1 Month** gift links.
 
-Public UI is **English**. Admin dashboard (`/admin`) stays **French**.
+- Public UI: **English**
+- Admin dashboard (`/admin`): **French**
+- Payments: PayPal + Litecoin (HD / Exodus)
+- Delivery: **plain DM messages** (1 gift link = 1 message) so Discord shows the gift embed
+
+## Flow
+
+1. Shop → **Buy Nitro** → quantity modal → confirm → PayPal / LTC  
+2. Private order channel + payment instructions  
+3. Auto delivery by DM (plain gift links)  
+4. Close → HTML transcript  
 
 ## Run
 
 ```bash
 cp .env.example .env
-# fill DISCORD_TOKEN, DISCORD_CLIENT_ID, DISCORD_GUILD_ID, CRYPTO_MNEMONIC…
-
 npm install
 npm start
 ```
 
-On boot, `index.js`:
-1. connects the bot
-2. **registers** slash commands `/cart` `/admin` `/rename` `/renew` `/giveaway` `/reroll`
-3. starts the crypto watcher (if HD seed is set) + giveaway scheduler
+Slash commands register on boot: `/admin` `/rename` `/renew` `/giveaway` `/reroll`
 
-No separate `deploy-commands` needed.
-
-Post the shop via `/admin` → **Poster la boutique** (permanent panel).
+Post the shop via `/admin` → **Poster la boutique**.
 
 ### Pterodactyl
 
-Startup: `npm install && npm start`
+`npm install && npm start`
 
-## Crypto (Exodus — Litecoin only)
+## Admin
 
-1. Put your **Exodus seed** in `CRYPTO_MNEMONIC`
-2. Each order gets a new LTC address (BIP44 `m/44'/2'/0'/0`)
-3. Customer pays LTC → auto detect → DM delivery
-4. Funds show up in **your Exodus** (same seed)
-
-**Never share the mnemonic.**
-
-## Buyer flow
-
-1. Shop → cart → PayPal or Litecoin (LTC)  
-2. Order channel + payment instructions  
-3. LTC: unique HD address + exact amount  
-4. Auto detect → **DM** delivery  
-5. Close → HTML transcript (DM + logs)  
+1. Create product **Nitro 1 Month** (auto + gift links stock)
+2. **Ajouter des liens** — one `https://discord.gift/...` per line
+3. Set price anytime from product manage / recreate with new price via edit flow
+4. Configure PayPal + `CRYPTO_MNEMONIC` for LTC
 
 ## Commands
 
 | Command | Role |
 |---------|------|
-| `/cart` | Cart |
-| `/admin` | Dashboard (French UI, + post shop) |
-| `/rename` | Rename an order ticket (admin) |
-| `/renew` | Recreate current channel in place (admin) |
-| `/giveaway create\|list\|cancel\|extend` | Giveaways (admin) |
-| `/reroll` | Reroll an ended giveaway (admin) |
+| `/admin` | Dashboard (FR) |
+| `/rename` | Rename order ticket |
+| `/renew` | Recreate any text channel in place |
+| `/giveaway` / `/reroll` | Giveaways |
 
-### Giveaways
+## Env
 
-- **Enter** / **Leave** buttons
-- Optional requirements: role, account age, server age
-- Auto draw at the end (skips members who left)
-- Winners announced in a **new message**
-- Prize = free text (not linked to the shop)
-
-## Important env vars
-
-See `.env.example` — especially:
-- `DISCORD_TOKEN` / `DISCORD_CLIENT_ID` / `DISCORD_GUILD_ID`
-- `CRYPTO_MNEMONIC` (Litecoin only)
+See `.env.example` — `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`, `CRYPTO_MNEMONIC`.

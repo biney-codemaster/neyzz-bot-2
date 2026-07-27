@@ -1,7 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const { buildCartPanel } = require('../ui/cart');
 const { buildAdminHome } = require('../ui/admin');
-const cart = require('../services/cart');
 const orders = require('../services/orders');
 const { renewChannel } = require('../services/channels');
 const { isAdmin } = require('../utils/helpers');
@@ -27,20 +25,8 @@ function sanitizeChannelName(raw) {
 module.exports = [
   {
     data: new SlashCommandBuilder()
-      .setName('cart')
-      .setDescription('Show your cart'),
-    async execute(interaction) {
-      const c = cart.getCart(interaction.user.id);
-      await interaction.reply({
-        ...buildCartPanel(c),
-        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-      });
-    },
-  },
-  {
-    data: new SlashCommandBuilder()
       .setName('admin')
-      .setDescription('Shop admin dashboard')
+      .setDescription('Nitro shop admin dashboard')
       .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     async execute(interaction) {
       if (!isAdmin(interaction.member)) {

@@ -22,19 +22,13 @@ function input(customId, label, { style = TextInputStyle.Short, required = true,
 }
 
 function productCreateModal() {
-  return modal('modal:product_create', 'Créer un produit')
+  return modal('modal:product_create', 'Créer Nitro / produit')
     .addComponents(
-      input('name', 'Nom du produit', { placeholder: 'Nitro 1 mois' }),
+      input('name', 'Nom', { placeholder: 'Nitro 1 Month', value: 'Nitro 1 Month' }),
       input('price', 'Prix (€)', { placeholder: '9.99' }),
-      input('delivery', 'Livraison: auto ou manual', { placeholder: 'auto', value: 'auto' }),
-      input('stock', 'Stock: keys, unlimited ou quantity:50', {
-        placeholder: 'keys',
-        value: 'keys',
-      }),
-      input('delivery_content', 'Contenu livré (auto / quantity)', {
-        style: TextInputStyle.Paragraph,
+      input('description', 'Description (optionnel)', {
         required: false,
-        placeholder: 'La clé ou le texte envoyé en MP au client',
+        placeholder: 'Discord Nitro gift — 1 month',
       }),
     );
 }
@@ -46,17 +40,27 @@ function deliveryContentModal(productId, current = '') {
         style: TextInputStyle.Paragraph,
         required: true,
         value: current || undefined,
-        placeholder: 'XXXX-XXXX-XXXX',
+        placeholder: 'https://discord.gift/...',
       }),
     );
 }
 
 function keysModal(productId) {
-  return modal(`modal:keys:${productId}`, 'Ajouter des clés')
+  return modal(`modal:keys:${productId}`, 'Ajouter des liens Nitro')
     .addComponents(
-      input('keys', 'Une clé par ligne', {
+      input('keys', 'Un lien Nitro par ligne', {
         style: TextInputStyle.Paragraph,
-        placeholder: 'KEY-1\nKEY-2\nKEY-3',
+        placeholder: 'https://discord.gift/xxxx\nhttps://discord.gift/yyyy',
+      }),
+    );
+}
+
+function productPriceModal(productId, currentPrice = '') {
+  return modal(`modal:product_price:${productId}`, 'Changer le prix')
+    .addComponents(
+      input('price', 'Nouveau prix (€)', {
+        placeholder: '9.99',
+        value: currentPrice !== '' ? String(currentPrice) : undefined,
       }),
     );
 }
@@ -73,9 +77,19 @@ function couponCreateModal() {
 }
 
 function couponCartModal() {
-  return modal('modal:cart_coupon', 'Promo code')
+  return modal('modal:buy_coupon', 'Promo code')
     .addComponents(
       input('code', 'Promo code', { placeholder: 'WELCOME10', required: false }),
+    );
+}
+
+function buyQuantityModal(productId, maxQty = 10) {
+  return modal(`modal:buy_qty:${productId}`, 'Quantity')
+    .addComponents(
+      input('quantity', 'How many Nitro links?', {
+        placeholder: `1–${Math.min(maxQty, 25)}`,
+        value: '1',
+      }),
     );
 }
 
@@ -136,8 +150,10 @@ module.exports = {
   productCreateModal,
   deliveryContentModal,
   keysModal,
+  productPriceModal,
   couponCreateModal,
   couponCartModal,
+  buyQuantityModal,
   paypalModal,
   emojiModal,
   reviewModal,

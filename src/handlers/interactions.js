@@ -1,4 +1,3 @@
-const cart = require('../services/cart');
 const products = require('../services/products');
 const orders = require('../services/orders');
 const reviews = require('../services/reviews');
@@ -11,8 +10,7 @@ const { closeOrderWithTranscript } = require('../services/transcript');
 const shopPanels = require('../services/shopPanels');
 const giveaways = require('../services/giveaways');
 const giveawayRunner = require('../services/giveawayRunner');
-const { buildShopPanel, buildProductDetail } = require('../ui/shop');
-const { buildCartPanel, buildItemManagePanel } = require('../ui/cart');
+const { buildShopPanel, buildProductDetail, buildBuyConfirm } = require('../ui/shop');
 
 async function bumpShop(client) {
   try {
@@ -119,7 +117,6 @@ async function handleButton(interaction) {
   }
 
   if (id === 'shop:refresh') {
-    // Ancien bouton — la boutique se rafraîchit seule maintenant
     try {
       return await interaction.update(buildShopPanel());
     } catch {
@@ -132,45 +129,18 @@ async function handleButton(interaction) {
   if (id === 'shop:back') {
     return safeUpdate(interaction, buildShopPanel());
   }
-  if (id === 'shop:open_cart') {
-    const c = cart.getCart(interaction.user.id);
-    return safeUpdate(interaction, buildCartPanel(c));
-  }
 
-  if (id.startsWith('shop:add:')) {
-    const [, , productId, qtyRaw] = id.split(':');
-    try {
-      const c = cart.addToCart(interaction.user.id, Number(productId), parseQuantity(qtyRaw, 1));
-      return interaction.reply(notice(`${emoji('check')} Added to cart.\nTotal: **${c.total.toFixed(2)} ${config.currencySymbol}**`));
-    } catch (e) {
-      return interaction.reply(notice(`${emoji('cross')} ${e.message}`, config.dangerColor));
-    }
-  }
-
-  if (id === 'cart:clear') {
-    cart.clearCart(interaction.user.id);
-    return safeUpdate(interaction, buildCartPanel(cart.getCart(interaction.user.id)));
-  }
-  if (id === 'cart:coupon') {
-    return interaction.showModal(modals.couponCartModal());
-  }
-  if (id.startsWith('cart:qty:')) {
-    const [, , productId, dir] = id.split(':');
-    const c = cart.getCart(interaction.user.id);
-    const item = c.items.find((i) => String(i.product_id) === productId);
-    if (!item) return interaction.reply(notice('Item not found.', config.dangerColor));
-    const next = dir === 'inc' ? item.quantity + 1 : item.quantity - 1;
-    try {
-      cart.setItemQuantity(interaction.user.id, Number(productId), next);
-      return safeUpdate(interaction, buildCartPanel(cart.getCart(interaction.user.id)));
-    } catch (e) {
-      return interaction.reply(notice(`${emoji('cross')} ${e.message}`, config.dangerColor));
-    }
-  }
-  if (id.startsWith('cart:remove:')) {
+  if (id.startsWith('shop:buy:')) {
     const productId = Number(id.split(':')[2]);
-    cart.removeFromCart(interaction.user.id, productId);
-    return safeUpdate(interaction, buildCartPanel(cart.getCart(interaction.user.id)));
+    const product = products.getProduct(productId);
+    if (!product || !product.active) {
+      return interaction.reply(notice('Product not found.', config.dangerColor));
+    }
+    if (!product.inStock) {
+      return interaction.reply(notice('Out of stock.', config.warnColor));
+    }
+    const maxQty = product.stock_mode === 'unlimited' ? 25 : Math.min(25, product.available);
+    return interaction.showModal(modals.buyQuantityModal(productId, maxQty));
   }
 
   // Orders — customer
@@ -443,6 +413,11 @@ async function handleAdminButton(interaction) {
     const productId = Number(id.split(':')[2]);
     return interaction.showModal(modals.keysModal(productId));
   }
+  if (id.startsWith('admin:product_price:')) {
+    const productId = Number(id.split(':')[2]);
+    const p = products.getProduct(productId);
+    return interaction.showModal(modals.productPriceModal(productId, p?.price ?? ''));
+  }
   if (id.startsWith('admin:product_content:')) {
     const productId = Number(id.split(':')[2]);
     const p = products.getProduct(productId);
@@ -466,62 +441,37 @@ async function handleSelect(interaction) {
     return safeUpdate(interaction, buildProductDetail(product));
   }
 
-  if (id === 'cart:manage_item') {
-    const product = products.getProduct(Number(value));
-    return safeUpdate(interaction, buildItemManagePanel(value, product?.name || 'Item'));
-  }
-
-  if (id === 'cart:pay_method') {
+  if (id.startsWith('buy:checkout:')) {
+    const [, , productIdRaw, qtyRaw] = id.split(':');
+    const productId = Number(productIdRaw);
+    const quantity = parseQuantity(qtyRaw, 1);
     try {
-      if (value === 'crypto') {
+      const paymentMethod = value === 'crypto' ? 'crypto' : value;
+      const cryptoCurrency = paymentMethod === 'crypto' ? 'ltc' : null;
+      if (paymentMethod === 'crypto') {
         const cryptos = require('../services/payments').getEnabledCryptos();
         if (!cryptos.length) {
           return interaction.reply(
             notice(`${emoji('warn')} Litecoin not configured (CRYPTO_MNEMONIC).`, config.warnColor),
           );
         }
-        // LTC uniquement — pas de sélection multi-coins
-        const order = orders.createOrderFromCart(interaction.user, 'crypto', 'ltc');
-        const channel = await createOrderChannel(interaction.guild, interaction.user, order);
-        await bumpShop(interaction.client);
-        await logShop(
-          interaction.client,
-          `${emoji('invoice')} **${order.public_id}** LTC — <@${interaction.user.id}> — ${order.total.toFixed(2)}€`,
-        );
-        return interaction.reply(
-          notice(
-            `${emoji('check')} Order **${order.public_id}** created (LTC).\nChannel: ${channel}`,
-          ),
-        );
       }
 
-      const order = orders.createOrderFromCart(interaction.user, value, null);
+      const order = orders.createOrderDirect(interaction.user, {
+        items: [{ productId, quantity }],
+        paymentMethod,
+        cryptoCurrency,
+      });
       const channel = await createOrderChannel(interaction.guild, interaction.user, order);
       await bumpShop(interaction.client);
+      const label = paymentMethod === 'crypto' ? 'LTC' : paymentMethod;
       await logShop(
         interaction.client,
-        `${emoji('invoice')} New order **${order.public_id}** — <@${interaction.user.id}> — ${order.total.toFixed(2)}€ — ${value}`,
-      );
-      return interaction.reply(
-        notice(`${emoji('check')} Order **${order.public_id}** created.\nChannel: ${channel}`),
-      );
-    } catch (e) {
-      return interaction.reply(notice(`${emoji('cross')} ${e.message}`, config.dangerColor));
-    }
-  }
-
-  if (id === 'checkout:crypto:pending' || id.startsWith('checkout:crypto:')) {
-    try {
-      const order = orders.createOrderFromCart(interaction.user, 'crypto', 'ltc');
-      const channel = await createOrderChannel(interaction.guild, interaction.user, order);
-      await bumpShop(interaction.client);
-      await logShop(
-        interaction.client,
-        `${emoji('invoice')} **${order.public_id}** LTC — <@${interaction.user.id}> — ${order.total.toFixed(2)}€`,
+        `${emoji('invoice')} **${order.public_id}** ${label} ×${quantity} — <@${interaction.user.id}> — ${order.total.toFixed(2)}€`,
       );
       return interaction.reply(
         notice(
-          `${emoji('check')} Order **${order.public_id}** created (LTC).\nChannel: ${channel}`,
+          `${emoji('check')} Order **${order.public_id}** created.\nChannel: ${channel}`,
         ),
       );
     } catch (e) {
@@ -545,63 +495,48 @@ async function handleSelect(interaction) {
 async function handleModal(interaction) {
   const id = interaction.customId;
 
-  if (id === 'modal:cart_coupon') {
-    const code = interaction.fields.getTextInputValue('code').trim();
-    try {
-      const c = cart.setCoupon(interaction.user.id, code || null);
-      return interaction.reply({
-        ...buildCartPanel(c),
-        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-      });
-    } catch (e) {
-      return interaction.reply(notice(`${emoji('cross')} ${e.message}`, config.dangerColor));
+  if (id.startsWith('modal:buy_qty:')) {
+    const productId = Number(id.split(':')[2]);
+    const product = products.getProduct(productId);
+    if (!product || !product.active) {
+      return interaction.reply(notice('Product not found.', config.dangerColor));
     }
+    const quantity = parseQuantity(interaction.fields.getTextInputValue('quantity'), 1);
+    const maxQty = product.stock_mode === 'unlimited' ? 25 : product.available;
+    if (quantity > maxQty) {
+      return interaction.reply(
+        notice(`${emoji('cross')} Only **${maxQty}** left in stock.`, config.dangerColor),
+      );
+    }
+    const total = product.price * quantity;
+    return interaction.reply(
+      buildBuyConfirm({ product, quantity, total }),
+    );
   }
 
   if (id === 'modal:product_create') {
     if (!isAdmin(interaction.member)) return interaction.reply(notice('Nope.', config.dangerColor));
     const name = interaction.fields.getTextInputValue('name').trim();
     const price = Number(interaction.fields.getTextInputValue('price').replace(',', '.'));
-    const delivery = interaction.fields.getTextInputValue('delivery').trim().toLowerCase();
-    const stockRaw = interaction.fields.getTextInputValue('stock').trim().toLowerCase();
-    const deliveryContent = interaction.fields.getTextInputValue('delivery_content').trim();
+    let description = '';
+    try {
+      description = interaction.fields.getTextInputValue('description').trim();
+    } catch {
+      description = '';
+    }
 
     if (!name || !Number.isFinite(price) || price < 0) {
       return interaction.reply(notice('Nom / prix invalide.', config.dangerColor));
     }
-    if (!['auto', 'manual'].includes(delivery)) {
-      return interaction.reply(notice('Livraison doit être auto ou manual.', config.dangerColor));
-    }
-
-    let stockMode = 'keys';
-    let quantity = 0;
-    if (stockRaw.startsWith('quantity')) {
-      stockMode = 'quantity';
-      const q = Number(stockRaw.split(':')[1]);
-      quantity = Number.isFinite(q) ? q : 0;
-    } else if (stockRaw === 'unlimited') {
-      stockMode = 'unlimited';
-    } else {
-      stockMode = 'keys';
-    }
-
-    if (delivery === 'auto' && stockMode !== 'keys' && !deliveryContent) {
-      return interaction.reply(
-        notice(
-          `${emoji('warn')} Pour auto + quantity/unlimited, indique un **contenu de livraison** (la clé/texte envoyé en MP).`,
-          config.warnColor,
-        ),
-      );
-    }
 
     const product = products.createProduct({
       name,
-      description: '',
+      description: description || 'Discord Nitro gift — 1 month',
       price,
-      deliveryType: delivery,
-      stockMode,
-      quantity,
-      deliveryContent,
+      deliveryType: 'auto',
+      stockMode: 'keys',
+      quantity: 0,
+      deliveryContent: '',
     });
     await bumpShop(interaction.client);
     return interaction.reply({
@@ -622,6 +557,21 @@ async function handleModal(interaction) {
     });
   }
 
+  if (id.startsWith('modal:product_price:')) {
+    if (!isAdmin(interaction.member)) return interaction.reply(notice('Nope.', config.dangerColor));
+    const productId = Number(id.split(':')[2]);
+    const price = Number(interaction.fields.getTextInputValue('price').replace(',', '.'));
+    if (!Number.isFinite(price) || price < 0) {
+      return interaction.reply(notice('Prix invalide.', config.dangerColor));
+    }
+    const product = products.updateProduct(productId, { price });
+    await bumpShop(interaction.client);
+    return interaction.reply({
+      ...buildProductManage(product),
+      flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+    });
+  }
+
   if (id.startsWith('modal:keys:')) {
     if (!isAdmin(interaction.member)) return interaction.reply(notice('Nope.', config.dangerColor));
     const productId = Number(id.split(':')[2]);
@@ -633,7 +583,7 @@ async function handleModal(interaction) {
     const available = products.addKeys(productId, keys);
     await bumpShop(interaction.client);
     return interaction.reply(
-      notice(`${emoji('check')} ${keys.length} clé(s) ajoutée(s). Stock libre: **${available}**.`),
+      notice(`${emoji('check')} ${keys.length} lien(s) Nitro ajouté(s). Stock libre: **${available}**.`),
     );
   }
 

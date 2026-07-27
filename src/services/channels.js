@@ -80,8 +80,8 @@ async function postOrderPanel(channel, userId, order, { created = false } = {}) 
               ? `${emoji('box')} <@${userId}> — order created.`
               : `${emoji('refresh')} <@${userId}> — ticket renewed.`,
             isCrypto
-              ? `${emoji('crypto')} Pay to the address below — **auto** detection, delivery by **DM**.`
-              : `${emoji('delivery')} After payment is confirmed, delivery will be sent by **DM**.`,
+              ? `${emoji('crypto')} Pay below — auto detect, **DM** delivery.`
+              : `${emoji('delivery')} After payment confirmation → **DM** delivery.`,
           ].join('\n'),
         ),
       ),

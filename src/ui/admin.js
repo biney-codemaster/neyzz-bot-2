@@ -24,17 +24,19 @@ function buildAdminHome() {
     + orders.listOrders({ status: 'pending', limit: 50 }).length;
   const stats = reviews.averageRating();
   const methods = payments.enabledPaymentMethods();
+  const linksStock = all.reduce((s, p) => s + (p.stock_mode === 'keys' ? p.available : 0), 0);
 
   const c = container()
     .addTextDisplayComponents(
-      text(`# ${emoji('admin')} Dashboard — ${config.shopName}`),
-      text('Gère produits, stock, paiements, coupons et commandes depuis Discord.'),
+      text(`# ${emoji('admin')} Dashboard Nitro — ${config.shopName}`),
+      text('Gère les liens Nitro, prix, paiements, coupons et commandes.'),
     )
     .addSeparatorComponents(separator())
     .addTextDisplayComponents(
       text(
         [
           `${emoji('product')} Produits : **${all.length}** (${all.filter((p) => p.active).length} actifs)`,
+          `${emoji('key')} Liens Nitro dispo : **${linksStock === Infinity ? '∞' : linksStock}**`,
           `${emoji('pending')} Commandes ouvertes : **${pending}**`,
           `${emoji('star')} Avis : **${stats.average}/5** (${stats.count})`,
           `${emoji('money')} Paiements : ${methods.map((m) => m.label).join(', ') || 'aucun'}`,
@@ -47,7 +49,7 @@ function buildAdminHome() {
       c,
       row(
         btn('admin:products', 'Produits', ButtonStyle.Primary, 'product'),
-        btn('admin:stock', 'Stock / clés', ButtonStyle.Secondary, 'stock'),
+        btn('admin:stock', 'Liens Nitro', ButtonStyle.Secondary, 'key'),
         btn('admin:coupons', 'Coupons', ButtonStyle.Secondary, 'coupon'),
         btn('admin:orders', 'Commandes', ButtonStyle.Secondary, 'invoice'),
       ),
@@ -55,7 +57,7 @@ function buildAdminHome() {
         btn('admin:payments', 'Paiements', ButtonStyle.Secondary, 'money'),
         btn('admin:emojis', 'Emojis', ButtonStyle.Secondary, 'settings'),
         btn('admin:post_shop', 'Poster la boutique', ButtonStyle.Success, 'shop'),
-        btn('admin:refresh', 'Actualiser panel', ButtonStyle.Secondary, 'refresh'),
+        btn('admin:refresh', 'Actualiser', ButtonStyle.Secondary, 'refresh'),
       ),
     ],
     flags: V2,
@@ -83,7 +85,7 @@ function buildProductsAdmin() {
   const components = [
     c,
     row(
-      btn('admin:product_create', 'Créer un produit', ButtonStyle.Success, 'add'),
+      btn('admin:product_create', 'Créer Nitro', ButtonStyle.Success, 'add'),
       btn('admin:home', 'Retour', ButtonStyle.Secondary, 'back'),
     ),
   ];
@@ -109,10 +111,6 @@ function buildProductsAdmin() {
 }
 
 function buildProductManage(product) {
-  const contentPreview = product.delivery_content
-    ? product.delivery_content.slice(0, 80) + (product.delivery_content.length > 80 ? '…' : '')
-    : '_Aucun — pour auto+quantity, définis un contenu ou ajoute des clés_';
-
   return {
     components: [
       container()
@@ -122,20 +120,20 @@ function buildProductManage(product) {
             [
               product.description || '_Pas de description_',
               `${emoji('money')} ${money(product.price)}`,
-              `Livraison: **${product.delivery_type}** · Stock: **${product.stock_mode}** (${product.stock_mode === 'unlimited' ? '∞' : product.available})`,
+              `Stock liens : **${product.stock_mode === 'unlimited' ? '∞' : product.available}**`,
               `Actif: **${product.active ? 'oui' : 'non'}**`,
-              `${emoji('key')} Contenu livraison auto: ${contentPreview}`,
+              `${emoji('key')} Livraison auto en MP (1 lien = 1 message brut)`,
             ].join('\n'),
           ),
         ),
       row(
         btn(`admin:product_toggle:${product.id}`, product.active ? 'Désactiver' : 'Activer', ButtonStyle.Primary, 'settings'),
-        btn(`admin:product_keys:${product.id}`, 'Ajouter des clés', ButtonStyle.Secondary, 'key'),
-        btn(`admin:product_content:${product.id}`, 'Contenu livraison', ButtonStyle.Secondary, 'box'),
+        btn(`admin:product_price:${product.id}`, 'Changer prix', ButtonStyle.Secondary, 'money'),
+        btn(`admin:product_keys:${product.id}`, 'Ajouter des liens', ButtonStyle.Success, 'key'),
       ),
       row(
         btn(`admin:product_delete:${product.id}`, 'Supprimer', ButtonStyle.Danger, 'trash'),
-        btn('admin:products', 'Retour produits', ButtonStyle.Secondary, 'back'),
+        btn('admin:products', 'Retour', ButtonStyle.Secondary, 'back'),
       ),
     ],
     flags: V2,
@@ -146,18 +144,17 @@ function buildStockAdmin() {
   const list = products.listProducts({ activeOnly: false });
   const components = [
     container().addTextDisplayComponents(
-      text(`# ${emoji('stock')} Stock / contenu`),
+      text(`# ${emoji('key')} Liens Nitro`),
       text(
         list.length
           ? list
               .map((p) => {
                 const stock =
                   p.stock_mode === 'unlimited' ? '∞' : String(p.available);
-                const hasContent = p.delivery_content ? 'contenu OK' : 'pas de contenu';
-                return `**#${p.id} ${p.name}** — ${p.stock_mode} (${stock}) · ${hasContent}`;
+                return `**#${p.id} ${p.name}** — **${stock}** lien(s) dispo`;
               })
               .join('\n')
-          : 'Aucun produit.',
+          : 'Aucun produit. Crée “Nitro 1 Month” puis ajoute des liens.',
       ),
     ),
   ];
@@ -166,11 +163,11 @@ function buildStockAdmin() {
     components.push(
       select(
         'admin:stock_product',
-        'Ajouter des clés à…',
+        'Ajouter des liens à…',
         list.slice(0, 25).map((p) => ({
           label: `#${p.id} ${p.name}`,
           value: String(p.id),
-          description: `${p.stock_mode} · ${p.available === Infinity ? '∞' : p.available}`,
+          description: `${p.available === Infinity ? '∞' : p.available} liens`,
           emojiKey: 'key',
         })),
       ),

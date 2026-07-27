@@ -50,22 +50,53 @@ function listOrders({ status, limit = 20 } = {}) {
 function createOrderFromCart(user, paymentMethod, cryptoCurrency = null) {
   const cart = cartService.getCart(user.id);
   if (!cart.items.length) throw new Error('Your cart is empty');
-  if (cart.couponError) throw new Error(cart.couponError);
+  return createOrderDirect(user, {
+    items: cart.items.map((i) => ({
+      productId: i.product_id,
+      quantity: i.quantity,
+    })),
+    paymentMethod,
+    cryptoCurrency,
+    couponCode: cart.couponCode || null,
+    clearCart: true,
+  });
+}
 
-  for (const item of cart.items) {
-    if (!item.product?.active) {
-      throw new Error(`Product unavailable: ${item.name}`);
+/**
+ * Direct checkout (no cart) — Nitro buy flow.
+ */
+function createOrderDirect(user, {
+  items,
+  paymentMethod,
+  cryptoCurrency = null,
+  couponCode = null,
+  clearCart = false,
+}) {
+  if (!items?.length) throw new Error('Nothing to order');
+
+  const resolved = items.map(({ productId, quantity }) => {
+    const product = products.getProduct(productId);
+    if (!product || !product.active) throw new Error('Product unavailable');
+    if (!product.inStock) throw new Error('Out of stock');
+    const qty = Math.max(1, Number(quantity) || 1);
+    if (product.stock_mode !== 'unlimited' && qty > product.available) {
+      throw new Error(`Only ${product.available} left in stock`);
     }
-    if (!item.product.inStock) {
-      throw new Error(`Out of stock: ${item.name}`);
-    }
-    if (
-      item.product.stock_mode !== 'unlimited' &&
-      item.quantity > item.product.available
-    ) {
-      throw new Error(`Insufficient stock for ${item.name}`);
-    }
+    return { product, quantity: qty };
+  });
+
+  let subtotal = resolved.reduce((s, r) => s + r.product.price * r.quantity, 0);
+  let discount = 0;
+  let appliedCoupon = null;
+
+  if (couponCode) {
+    const check = coupons.applyCoupon(couponCode, subtotal);
+    if (!check.ok) throw new Error(check.error);
+    appliedCoupon = check.coupon;
+    discount = check.discount;
   }
+
+  const total = Math.max(0, subtotal - discount);
 
   const create = getDb().transaction(() => {
     const result = getDb()
@@ -81,10 +112,10 @@ function createOrderFromCart(user, paymentMethod, cryptoCurrency = null) {
         user.username || user.tag || user.id,
         paymentMethod,
         cryptoCurrency,
-        cart.subtotal,
-        cart.discount,
-        cart.total,
-        cart.couponCode || null,
+        subtotal,
+        discount,
+        total,
+        appliedCoupon?.code || null,
       );
 
     const orderId = result.lastInsertRowid;
@@ -94,25 +125,25 @@ function createOrderFromCart(user, paymentMethod, cryptoCurrency = null) {
       ) VALUES (?, ?, ?, ?, ?, ?)`,
     );
 
-    for (const item of cart.items) {
+    for (const { product, quantity } of resolved) {
       insertItem.run(
         orderId,
-        item.product_id,
-        item.name,
-        item.price,
-        item.quantity,
-        item.delivery_type,
+        product.id,
+        product.name,
+        product.price,
+        quantity,
+        product.delivery_type,
       );
 
-      if (item.product.stock_mode === 'keys') {
-        products.reserveKeys(item.product_id, item.quantity, orderId);
-      } else if (item.product.stock_mode === 'quantity') {
-        products.decrementQuantity(item.product_id, item.quantity);
+      if (product.stock_mode === 'keys') {
+        products.reserveKeys(product.id, quantity, orderId);
+      } else if (product.stock_mode === 'quantity') {
+        products.decrementQuantity(product.id, quantity);
       }
     }
 
-    if (cart.couponCode) coupons.incrementCouponUse(cart.couponCode);
-    cartService.clearCart(user.id);
+    if (appliedCoupon?.code) coupons.incrementCouponUse(appliedCoupon.code);
+    if (clearCart) cartService.clearCart(user.id);
     return orderId;
   });
 
@@ -231,7 +262,11 @@ function deliverOrder(orderId) {
   const tx = getDb().transaction(() => {
     for (const item of order.items) {
       if (item.delivered_payload) {
-        deliveries.push({ item, payload: item.delivered_payload });
+        const links = String(item.delivered_payload)
+          .split('\n')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        deliveries.push({ item, payload: item.delivered_payload, links });
         continue;
       }
 
@@ -266,10 +301,14 @@ function deliverOrder(orderId) {
         }
 
         updateItem.run(content, item.id);
-        deliveries.push({ item, payload: content });
+        const links = String(content)
+          .split('\n')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        deliveries.push({ item, payload: content, links });
       } else {
         allDone = false;
-        deliveries.push({ item, payload: null, manual: true });
+        deliveries.push({ item, payload: null, links: [], manual: true });
       }
     }
 
@@ -323,6 +362,7 @@ module.exports = {
   getOrderByChannel,
   listOrders,
   createOrderFromCart,
+  createOrderDirect,
   setOrderChannel,
   setPaymentRef,
   markPaid,
